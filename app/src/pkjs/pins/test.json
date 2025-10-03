@@ -1,0 +1,9 @@
+{
+    "id": "example-pin-generic-1",
+    "time": "2025-07-22T18:00:00Z",
+    "layout": {
+      "type": "genericPin",
+      "title": "News at news o'clock",
+      "tinyIcon": "system://images/BIRTHDAY_EVENT"
+    }
+  }

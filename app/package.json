@@ -1,0 +1,403 @@
+{
+  "name": "dribble",
+  "author": "Logan Head",
+  "version": "1.0.0",
+  "keywords": [
+    "pebble-app"
+  ],
+  "private": true,
+  "dependencies": {
+    "pebble-clay": "^1.0.4"
+  },
+  "pebble": {
+    "displayName": "Dribble",
+    "uuid": "666b626b-9b17-4930-886b-ba75cfbefb4c",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "capabilities": [
+      "configurable"
+    ],
+    "targetPlatforms": [
+      "basalt",
+      "chalk",
+      "diorite",
+      "emery"
+    ],
+    "watchapp": {
+      "watchface": false
+    },
+    "messageKeys": [
+      "CFG_TEMPERATURE_UNITS",
+      "CFG_VELOCITY_UNITS",
+      "CFG_DISTANCE_UNITS",
+      "CFG_PRESSURE_UNITS",
+      "CFG_PRECIPITATION_UNITS",
+      "CFG_REFRESH_INTERVAL",
+      "CFG_SELF_REFRESH",
+      "CFG_DISPLAY_INTERVAL",
+      "CFG_ANIMATE",
+      "CFG_WIND_VANE_DIRECTION",
+      "JS_READY",
+      "REQUEST_DATA",
+      "RESPONSE_DATA",
+      "REQUEST_HOUR",
+      "HOUR_PACKAGE[12]",
+      "PRECIPITATION_PACKAGE"
+    ],
+    "resources": {
+      "media": [
+        {
+          "type": "bitmap",
+          "name": "MENU_ICON",
+          "file": "Icon_25px.png",
+          "menuIcon": true
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_OUTLINE_25PX",
+          "file": "IconOutline_25px.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_INVERT_25PX",
+          "file": "IconInvert_25px.png"
+        },
+        {
+          "type": "raw",
+          "name": "CLOUDY_50PX",
+          "file": "conditions/50x50_Cloudy_day.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "CLOUDY_25PX",
+          "file": "conditions/25x25_Cloudy_day.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "PARTLY_CLOUDY_50PX",
+          "file": "conditions/50x50_Partly_cloudy.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "PARTLY_CLOUDY_25PX",
+          "file": "conditions/25x25_Partly_cloudy.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "RAINING_SNOWING_50PX",
+          "file": "conditions/50x50_Raining_and_snowing.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "RAINING_SNOWING_25PX",
+          "file": "conditions/25x25_Raining_and_snowing.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "LIGHT_SNOW_50PX",
+          "file": "conditions/50x50_Light_snow.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "LIGHT_SNOW_25PX",
+          "file": "conditions/25x25_Light_snow.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "LIGHT_RAIN_50PX",
+          "file": "conditions/50x50_Light_rain.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "LIGHT_RAIN_25PX",
+          "file": "conditions/25x25_Light_rain.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "HEAVY_SNOW_50PX",
+          "file": "conditions/50x50_Heavy_snow.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "HEAVY_SNOW_25PX",
+          "file": "conditions/25x25_Heavy_snow.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "HEAVY_RAIN_50PX",
+          "file": "conditions/50x50_Heavy_rain.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "HEAVY_RAIN_25PX",
+          "file": "conditions/25x25_Heavy_rain.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "GENERIC_WEATHER_50PX",
+          "file": "conditions/50x50_Generic_weather.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "GENERIC_WEATHER_25PX",
+          "file": "conditions/25x25_Generic_weather.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "SUNNY_50PX",
+          "file": "conditions/50x50_Sunny_day.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "SUNNY_25PX",
+          "file": "conditions/25x25_Sunny_day.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "PARTLY_CLOUDY_NIGHT_50PX",
+          "file": "conditions/PartlyMoon_50px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "PARTLY_CLOUDY_NIGHT_25PX",
+          "file": "conditions/PartlyMoon_25px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "CLEAR_NIGHT_50PX",
+          "file": "conditions/Moon2_50px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "CLEAR_NIGHT_25PX",
+          "file": "conditions/Moon2_25px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WINDY_25PX",
+          "file": "conditions/25x25_Dismiss_Wind.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WINDY_50PX",
+          "file": "conditions/50x50_Dismiss_Wind.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "STORMY_25PX",
+          "file": "conditions/Storm_25px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "STORMY_50PX",
+          "file": "conditions/Storm_50px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "AXIS_SMALL",
+          "file": "conditions/Axis_25x10.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "AXIS_LARGE",
+          "file": "conditions/Axis_86x10.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_VANE",
+          "file": "airflow/WindVane.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_VANE_ANGLE",
+          "file": "airflow/WindVaneAngle.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_1",
+          "file": "airflow/WindSpeed1.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_1_ANGLE",
+          "file": "airflow/WindSpeed1Angle.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_2",
+          "file": "airflow/WindSpeed2.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_2_ANGLE",
+          "file": "airflow/WindSpeed2Angle.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_3",
+          "file": "airflow/WindSpeed3.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_3_ANGLE",
+          "file": "airflow/WindSpeed3Angle.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "BAD_AQI_25PX",
+          "file": "experiential/BadAQI_25px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "BAD_AQI_50PX",
+          "file": "experiential/BadAQI_50px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "COLD_25PX",
+          "file": "experiential/Cold_25px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "COLD_50PX",
+          "file": "experiential/Cold_50px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "REALLY_COLD_25PX",
+          "file": "experiential/ReallyCold_25px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "REALLY_COLD_50PX",
+          "file": "experiential/ReallyCold_50px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "MEDIUM_UVI_25PX",
+          "file": "experiential/MedUVI_25px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "MEDIUM_UVI_50PX",
+          "file": "experiential/MedUVI_50px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "HIGH_UVI_25PX",
+          "file": "experiential/HiUVI_25px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "HIGH_UVI_50PX",
+          "file": "experiential/HiUVI_50px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "FOGGY_25PX",
+          "file": "experiential/Foggy_25px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "FOGGY_50PX",
+          "file": "experiential/Foggy_50px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "RAIN_25PX",
+          "file": "experiential/Rain_25px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "RAIN_50PX",
+          "file": "experiential/Rain_50px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "EMOJI_KISSING",
+          "file": "experiential/emoji/KissBackwards.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "EMOJI_SMILE",
+          "file": "experiential/emoji/Smile.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "EMOJI_TEETH",
+          "file": "experiential/emoji/Teeth.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "EMOJI_WINKY_TONGUE",
+          "file": "experiential/emoji/WinkyTongue.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "RETRIEVAL",
+          "file": "sequences/Retrieval_80px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "SNOWFLAKE_25PX",
+          "file": "timeline/Snowflake_25px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "SNOWFLAKE_50PX",
+          "file": "timeline/Snowflake_50px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "SNOWFLAKE_80PX",
+          "file": "timeline/Snowflake_80px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "RAINDROP_25PX",
+          "file": "timeline/Raindrop_25px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "RAINDROP_50PX",
+          "file": "timeline/Raindrop_50px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "RAINDROP_80PX",
+          "file": "timeline/Raindrop_80px.pdc"
+        }
+      ],
+      "publishedMedia": [
+        {
+          "name": "SNOWFLAKE",
+          "id": 1,
+          "timeline": {
+            "tiny": "SNOWFLAKE_25PX",
+            "small": "SNOWFLAKE_50PX",
+            "large": "SNOWFLAKE_80PX"
+          }
+        },
+        {
+          "name": "RAINDROP",
+          "id": 2,
+          "timeline": {
+            "tiny": "RAINDROP_25PX",
+            "small": "RAINDROP_50PX",
+            "large": "RAINDROP_80PX"
+          }
+        },
+        {
+          "name": "ICON_OUTLINE",
+          "id": 10,
+          "glance": "ICON_OUTLINE_25PX"
+        },
+        {
+          "name": "ICON_INVERT",
+          "id": 11,
+          "glance": "ICON_INVERT_25PX"
+        }
+      ]
+    }
+  }
+}

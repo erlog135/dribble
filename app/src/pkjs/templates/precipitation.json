@@ -1,0 +1,162 @@
+{
+  "rain": {
+    "light": {
+      "threshold": 0.1,
+      "templates": [
+        "Just a light drizzle—barely enough to need an umbrella. Expect <amt> over <dur>.",
+        "A gentle rain is falling. You might not even notice it! Accumulation: <amt> in <dur>.",
+        "Light rain outside, just enough to dampen the ground. About <amt> in <dur>.",
+        "A few sprinkles—no need to worry about getting soaked. Only <amt> expected in <dur>.",
+        "Soft rain, perfect for a cozy day indoors. Rainfall: <amt> over <dur>."
+      ]
+    },
+    "moderate": {
+      "threshold": 2.5,
+      "templates": [
+        "Steady rain coming down. The ducks will love it! Expect <amt> in <dur>.",
+        "It's raining at a good clip—watch for puddles! Accumulation: <amt> over <dur>.",
+        "Moderate rainfall: enough to soak through if you're out for a while. About <amt> in <dur>.",
+        "A solid rain shower is underway. Stay dry! Rainfall: <amt> in <dur>.",
+        "Umbrella weather: moderate rain expected for a bit. Total: <amt> over <dur>."
+      ]
+    },
+    "heavy": {
+      "threshold": 7.5,
+      "templates": [
+        "Whoa! It's raining cats & dogs out there! You're looking at about <amt> of rain over <dur>.",
+        "Heavy rain is pouring down—visibility may be low! Accumulation: <amt> in <dur>.",
+        "Downpour alert! Expect <amt> of rain in <dur>.",
+        "Serious rain outside—watch for flooding in low areas. Rainfall: <amt> over <dur>.",
+        "It's coming down in buckets! Stay inside if you can. Total: <amt> in <dur>."
+      ]
+    }
+  },
+  "snow": {
+    "light": {
+      "threshold": 0.1,
+      "templates": [
+        "A few flurries—just a dusting of snow expected. Accumulation: <amt> in <dur>.",
+        "Light snow is falling, barely covering the ground. About <amt> in <dur>.",
+        "Gentle snowflakes drifting down—no need for shovels yet. Expect <amt> over <dur>.",
+        "A light snow shower—enough to make things pretty. Snowfall: <amt> in <dur>.",
+        "Just a trace of snow, nothing to worry about. Total: <amt> in <dur>."
+      ]
+    },
+    "moderate": {
+      "threshold": 2.5,
+      "templates": [
+        "Moderate snowfall—roads may get slick. Expect <amt> in <dur>.",
+        "Snow is coming down steadily. Bundle up! Accumulation: <amt> over <dur>.",
+        "A good layer of snow is building up outside. About <amt> in <dur>.",
+        "Moderate snow—enough to cover everything in white. Snowfall: <amt> in <dur>.",
+        "Snowfall is picking up; you might need to shovel later. Total: <amt> in <dur>."
+      ]
+    },
+    "heavy": {
+      "threshold": 7.5,
+      "templates": [
+        "Heavy snowstorm! Expect <amt> of snow over <dur>.",
+        "Blizzard conditions possible—visibility is low! Accumulation: <amt> in <dur>.",
+        "Snow is piling up fast—travel could be hazardous. About <amt> in <dur>.",
+        "Major snowfall underway—stay safe and warm! Snowfall: <amt> in <dur>.",
+        "It's a winter wonderland, but driving will be tough. Total: <amt> in <dur>."
+      ]
+    }
+  },
+  "thunder": {
+    "light": {
+      "threshold": 0.1,
+      "templates": [
+        "A few rumbles of thunder in the distance. Rainfall: <amt> in <dur>.",
+        "Light thunderstorm activity—nothing severe expected. Accumulation: <amt> over <dur>.",
+        "Some thunder, but mostly just rain. About <amt> in <dur>.",
+        "Occasional thunderclaps—keep an ear out. Total: <amt> in <dur>.",
+        "Thunder is rolling, but the storm is mild. Expect <amt> over <dur>."
+      ]
+    },
+    "moderate": {
+      "threshold": 2.5,
+      "templates": [
+        "Thunderstorms are moving through—expect some lightning. Rainfall: <amt> in <dur>.",
+        "Moderate thunderstorm: rain and thunder are both present. Accumulation: <amt> over <dur>.",
+        "Thunder is frequent—stay indoors if possible. About <amt> in <dur>.",
+        "A lively thunderstorm is passing by. Total: <amt> in <dur>.",
+        "Thunder and lightning are picking up. Expect <amt> over <dur>."
+      ]
+    },
+    "heavy": {
+      "threshold": 7.5,
+      "templates": [
+        "Severe thunderstorm! Take shelter and avoid travel. Rainfall: <amt> in <dur>.",
+        "Intense thunder and lightning—stay safe indoors! Accumulation: <amt> over <dur>.",
+        "Heavy thunderstorm: expect loud rumbles and bright flashes. About <amt> in <dur>.",
+        "Dangerous storm: thunder, lightning, and heavy rain all at once. Total: <amt> in <dur>.",
+        "Extreme thunderstorm conditions—power outages possible. Expect <amt> over <dur>."
+      ]
+    }
+  },
+  "hail": {
+    "light": {
+      "threshold": 0.1,
+      "templates": [
+        "A few small hailstones mixed with rain. Accumulation: <amt> in <dur>.",
+        "Light hail—just enough to notice. About <amt> in <dur>.",
+        "Some tiny hail is falling, but nothing damaging. Expect <amt> over <dur>.",
+        "Occasional hailstones—no need to worry. Total: <amt> in <dur>.",
+        "Light hail shower—mostly harmless. Hailfall: <amt> in <dur>."
+      ]
+    },
+    "moderate": {
+      "threshold": 2.5,
+      "templates": [
+        "Moderate hailstorm—watch for slippery surfaces. Hailfall: <amt> in <dur>.",
+        "Hail is coming down with some force. Accumulation: <amt> over <dur>.",
+        "Moderate hail: could cause minor damage to plants. About <amt> in <dur>.",
+        "Hailstones are getting larger—take care. Total: <amt> in <dur>.",
+        "A decent hailstorm is underway. Expect <amt> over <dur>."
+      ]
+    },
+    "heavy": {
+      "threshold": 7.5,
+      "templates": [
+        "Heavy hailstorm! Stay indoors to avoid injury. Hailfall: <amt> in <dur>.",
+        "Large hailstones are falling—risk of damage to property. Accumulation: <amt> over <dur>.",
+        "Severe hail: vehicles and windows could be at risk. About <amt> in <dur>.",
+        "Intense hailstorm—seek shelter immediately! Total: <amt> in <dur>.",
+        "Major hail event: stay safe and protect your belongings. Expect <amt> over <dur>."
+      ]
+    }
+  },
+  "generic": {
+    "light": {
+      "threshold": 0.1,
+      "templates": [
+        "Light precipitation—barely noticeable. Total: <amt> in <dur>.",
+        "A few drops or flakes in the air. Accumulation: <amt> over <dur>.",
+        "Just a hint of precipitation outside. About <amt> in <dur>.",
+        "Very light weather—no need for concern. Expect <amt> over <dur>.",
+        "A touch of moisture in the air. Total: <amt> in <dur>."
+      ]
+    },
+    "moderate": {
+      "threshold": 2.5,
+      "templates": [
+        "Moderate precipitation—enough to make things wet. Total: <amt> in <dur>.",
+        "Steady weather: bring a jacket just in case. Accumulation: <amt> over <dur>.",
+        "Noticeable precipitation, but nothing extreme. About <amt> in <dur>.",
+        "Weather is active—expect to get a little wet. Expect <amt> over <dur>.",
+        "Moderate conditions: keep an eye on the sky. Total: <amt> in <dur>."
+      ]
+    },
+    "heavy": {
+      "threshold": 7.5,
+      "templates": [
+        "Heavy precipitation—expect significant accumulation. Total: <amt> in <dur>.",
+        "Serious weather event: stay alert! Accumulation: <amt> over <dur>.",
+        "A lot of moisture is coming down—be prepared. About <amt> in <dur>.",
+        "Major precipitation: travel could be affected. Expect <amt> over <dur>.",
+        "Extreme conditions—take precautions. Total: <amt> in <dur>."
+      ]
+    }
+  }
+}
