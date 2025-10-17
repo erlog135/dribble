@@ -40,7 +40,7 @@ void unpack_hour_package(HourPackage weather_data, ForecastHour* forecast_hour) 
     int visibility = weather_data[5];
 
     // Pressure (int8, difference from 1000mb)
-    int pressure = ((int8_t)weather_data[6]) + 1000;
+    int pressure_mb = ((int8_t)weather_data[6]) + 1000;
 
     // Wind direction (4 bits) and air quality (4 bits)
     uint8_t wind_dir4 = weather_data[7] >> 4;
@@ -101,10 +101,7 @@ void unpack_hour_package(HourPackage weather_data, ForecastHour* forecast_hour) 
         visibility = km_to_miles(visibility);
     }
 
-    // Convert pressure if needed
-    if (strcmp(settings->pressure_units, "in") == 0) {
-        pressure = mb_to_inHg(pressure);
-    }
+
 
     // Format airflow string with appropriate units, including only available data
     char airflow_buffer[MAX_STRING_LENGTH];
@@ -154,8 +151,15 @@ void unpack_hour_package(HourPackage weather_data, ForecastHour* forecast_hour) 
     }
 
     // Add pressure (always available)
-    written += snprintf(airflow_buffer + written, MAX_STRING_LENGTH - written,
-                       "\n%d%s", pressure, settings->pressure_units);
+    if (strcmp(settings->pressure_units, "in") == 0) {
+        // For inHg, use the x100 function to get value multiplied by 100
+        uint16_t pressure_x100 = mb_to_inHg_x100(pressure_mb);
+        written += snprintf(airflow_buffer + written, MAX_STRING_LENGTH - written,
+                           "\n%d.%02d%s", pressure_x100 / 100, pressure_x100 % 100, settings->pressure_units);
+    } else {
+        written += snprintf(airflow_buffer + written, MAX_STRING_LENGTH - written,
+                           "\n%d%s", pressure_mb, settings->pressure_units);
+    }
 
     strncpy(forecast_hour->airflow_string, airflow_buffer, MAX_STRING_LENGTH - 1);
     forecast_hour->airflow_string[MAX_STRING_LENGTH - 1] = '\0';

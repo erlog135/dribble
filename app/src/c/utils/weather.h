@@ -93,7 +93,7 @@ uint8_t km_to_miles(uint8_t kilo);
 int8_t fahrenheit_to_celsius(int8_t fahrenheit);
 uint8_t kph_to_mph(uint8_t kph);
 uint8_t kph_to_mps(uint8_t kph);
-uint8_t mb_to_inHg(uint8_t mb);
+uint16_t mb_to_inHg_x100(uint16_t mb);
 
 // Convert wind direction in degrees to 8-direction code (0-7)
 // 0: Right (0°)

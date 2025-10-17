@@ -97,8 +97,8 @@ uint8_t kph_to_mps(uint8_t kph) {
     return (uint8_t)(kph * 0.277778f + 0.5f);
 }
 
-uint8_t mb_to_inHg(uint8_t mb) {
-    return (uint8_t)(mb * 0.02953f + 0.5f);
+uint16_t mb_to_inHg_x100(uint16_t mb) {
+    return (uint16_t)(mb * 2.953f + 0.5f); // Multiply by 100 to avoid decimal point
 }
 
 // Convert wind direction in degrees to 8-direction code (0-7)
