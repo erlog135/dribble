@@ -60,6 +60,11 @@ static void check_and_schedule_precipitation_wakeups(void) {
 
     UTIL_LOG(UTIL_LOG_LEVEL_INFO, "Checking precipitation data");
 
+    // TEMPORARY: Disable all wakeup scheduling until scheduling functionality is improved
+    //TODO: remove this once scheduling functionality is improved
+    UTIL_LOG(UTIL_LOG_LEVEL_INFO, "Wakeup scheduling temporarily disabled in splash");
+    return;
+
     // Check if self-refresh is enabled
     ClaySettings* settings = prefs_get_settings();
     if (!settings->self_refresh) {

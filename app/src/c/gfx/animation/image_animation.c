@@ -6,7 +6,7 @@
 // Experiential image offset definitions
 GPoint experiential_image_offsets[] = {
     {0, 10}, //mask
-    {0, -10}, //cap
+    {0, -15}, //cap
     {0, 0}, //sunglasses
     {0, -10}, //hat
     {0, 0}, //hat+scarf

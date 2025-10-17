@@ -12,9 +12,9 @@ AppTimer* timeout_timer;
 #define HIGH_WIND_SPEED 75
 #define ANEMOMETER_TIMEOUT_MS (60 * 1000)  // 1 minute in milliseconds
 
-//182 is a single degree of rotation
-#define ANEMOMETER_SPEED_MIN 182*8
-#define ANEMOMETER_SPEED_MAX 182*16
+//182 is a single degree of rotation, times rotations per frame
+#define ANEMOMETER_SPEED_MIN 182*6
+#define ANEMOMETER_SPEED_MAX 182*30
 
 int32_t anemometer_speed = ANEMOMETER_SPEED_MIN; 
 

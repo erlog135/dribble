@@ -132,7 +132,7 @@ module.exports = [
             "type": "toggle",
             "messageKey": "CFG_SELF_REFRESH",
             "label": "Enable self-refresh",
-            "description": "Allows the app to schedule itself to open and refresh weather data, and close right after. This is probably necessary for precipitation to show up in the timeline. (not yet activated)",
+            "description": "Allows the app to schedule itself to open and refresh weather data, and close right after. This will probably be necessary for precipitation to show up in the timeline. (not yet activated)",
             "defaultValue": true
           },
           {

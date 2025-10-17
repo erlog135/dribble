@@ -2,88 +2,102 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Populate the global forecast_hours array with mock data
+// Preset data structure for each forecast hour
+typedef struct {
+    const char* hour_string;
+    int temp;
+    int wind_speed;
+    int wind_gust;
+    int wind_dir;  // 0-15 for 16 directions
+    int pressure;
+    uint8_t conditions_icon;
+    uint8_t experiential_icon;
+    const char* experiential_string;
+} PresetHourData;
+
+// Customize these preset values for each hour (starting at 8AM, 2-hour intervals)
+static const PresetHourData preset_hours[12] = {
+    // hour_string, temp, wind_speed, wind_gust, wind_dir, pressure, conditions_icon, experiential_icon, experiential_string
+    {"8AM", 68, 8, 12, 4, 1013, WEATHER_CONDITION_PARTLY_CLOUDY, 2, "Feels 66°\nUVI 4\nVis. 18mi"},
+    {"10AM", 74, 10, 15, 5, 1012, WEATHER_CONDITION_CLEAR, 2, "Feels 72°\nUVI 6\nVis. 20mi"},
+    {"12PM", 82, 12, 18, 6, 1011, WEATHER_CONDITION_CLEAR, 3, "Feels 80°\nUVI 9\nVis. 20mi"},
+    {"2PM", 86, 14, 21, 7, 1010, WEATHER_CONDITION_CLEAR, 3, "Feels 84°\nUVI 10\nVis. 20mi"},
+    {"4PM", 84, 15, 22, 0, 1009, WEATHER_CONDITION_PARTLY_CLOUDY, 3, "Feels 82°\nUVI 8\nVis. 18mi"},
+    {"6PM", 78, 16, 24, 1, 1008, WEATHER_CONDITION_PARTLY_CLOUDY, 2, "Feels 76°\nUVI 4\nVis. 16mi"},
+    {"8PM", 72, 14, 20, 2, 1007, WEATHER_CONDITION_PARTLY_CLOUDY, 0, "Feels 70°\nUVI 1\nVis. 15mi"},
+    {"10PM", 68, 12, 17, 3, 1006, WEATHER_CONDITION_CLOUDY, 0, "Feels 66°\nUVI 0\nVis. 12mi"},
+    {"12AM", 64, 10, 15, 4, 1005, WEATHER_CONDITION_CLOUDY, 0, "Feels 62°\nUVI 0\nVis. 10mi"},
+    {"2AM", 62, 8, 12, 5, 1004, WEATHER_CONDITION_CLOUDY, 0, "Feels 60°\nUVI 0\nVis. 8mi"},
+    {"4AM", 60, 6, 9, 6, 1003, WEATHER_CONDITION_PARTLY_CLOUDY_NIGHT, 0, "Feels 58°\nUVI 0\nVis. 10mi"},
+    {"6AM", 62, 7, 11, 7, 1004, WEATHER_CONDITION_PARTLY_CLOUDY_NIGHT, 0, "Feels 60°\nUVI 0\nVis. 12mi"},
+};
+
+// Populate the global forecast_hours array with preset data
 void demo_populate_forecast_hours(void) {
-    // Base values
-    int base_temp = 72;  // 72°F
-    int base_wind = 8;   // 8 mph
-    int base_pressure = 1013;  // 1013 mb
-    
     for (int i = 0; i < 12; i++) {
-        // Generate random variations
-        int temp = base_temp + (rand() % 11 - 5);
-        int feels_like = temp + (rand() % 7 - 3);
-        int wind_speed = base_wind + (rand() % 11);
-        int wind_gust = wind_speed * (15 + rand() % 6) / 10;
-        int visibility = 10 + (rand() % 11);
-        int pressure = base_pressure + (rand() % 11 - 5);
-        int wind_dir = rand() % 16;  // 0-15 for 16 directions
-        int uv_index = rand() % 11;  // 0-10 UV index
+        const PresetHourData* preset = &preset_hours[i];
         
         // Set hour string
-        if (i == 0) {
-            strcpy(forecast_hours[i].hour_string, "12AM");
-        } else if (i < 12) {
-            snprintf(forecast_hours[i].hour_string, 5, "%dAM", i);
-        } else if (i == 12) {
-            strcpy(forecast_hours[i].hour_string, "12PM");
-        } else {
-            snprintf(forecast_hours[i].hour_string, 5, "%dPM", i - 12);
-        }
+        strncpy(forecast_hours[i].hour_string, preset->hour_string, 4);
+        forecast_hours[i].hour_string[4] = '\0';
         
-        // Set wind direction and icons
-        forecast_hours[i].wind_direction = wind_dir / 2;
+        // Set wind data
+        forecast_hours[i].wind_speed = preset->wind_speed;
+        forecast_hours[i].wind_direction = preset->wind_dir / 2;  // Convert to 0-7 range
         
         // Set wind speed icon based on wind speed
-        if (wind_speed <= 16) {
+        if (preset->wind_speed <= 16) {
             forecast_hours[i].wind_speed_icon = 0;
-        } else if (wind_speed <= 32) {
+        } else if (preset->wind_speed <= 32) {
             forecast_hours[i].wind_speed_icon = 2;
         } else {
             forecast_hours[i].wind_speed_icon = 4;
         }
         
-        // Set random conditions and experiential icons
-        // Pick a random value from 0-12, but skip 5-8
-        int icon = rand() % 9; // 0-8
-        if (icon >= 6) icon += 3; // skip 5-8, so 5->8, 6->9, 7->10, 8->11
-        forecast_hours[i].conditions_icon = icon;
-        forecast_hours[i].experiential_icon = rand() % 7 + 1;
+        // Set condition and experiential icons
+        forecast_hours[i].conditions_icon = preset->conditions_icon;
+        forecast_hours[i].experiential_icon = preset->experiential_icon;
         
         // Format conditions string
         snprintf(forecast_hours[i].conditions_string, MAX_STRING_LENGTH - 1,
                 "%d°F\n%s",
-                temp,
-                get_weather_condition_string(forecast_hours[i].conditions_icon));
+                preset->temp,
+                get_weather_condition_string(preset->conditions_icon));
         
         // Format airflow string
         snprintf(forecast_hours[i].airflow_string, MAX_STRING_LENGTH - 1,
                 "%d mph %s\n%d mph gusts\n%d mb",
-                wind_speed,
-                get_wind_direction_string(wind_dir),
-                wind_gust,
-                pressure);
+                preset->wind_speed,
+                get_wind_direction_string(preset->wind_dir),
+                preset->wind_gust,
+                preset->pressure);
         
-        // Format experiential string
-        snprintf(forecast_hours[i].experiential_string, MAX_STRING_LENGTH - 1,
-                "Demo\nDemo\nDemo");
+        // Use preset experiential string
+        strncpy(forecast_hours[i].experiential_string, preset->experiential_string, MAX_STRING_LENGTH - 1);
+        forecast_hours[i].experiential_string[MAX_STRING_LENGTH - 1] = '\0';
     }
-    
-    // Set last 4 experiential icons to specific demo values
-    forecast_hours[8].experiential_icon = 0;
-    forecast_hours[9].experiential_icon = 2;
-    forecast_hours[10].experiential_icon = 3;
-    forecast_hours[11].experiential_icon = 3;
 }
 
-// Populate the global precipitation variable with mock data
+// Populate the global precipitation variable with preset rain data
 void demo_populate_precipitation(void) {
-    // Generate random precipitation type
-    precipitation.precipitation_type = rand() % 7;
+    // Set precipitation type to rain
+    precipitation.precipitation_type = 2; // rain
     
-    // Generate random precipitation intensity pattern
+    // Set preset rain intensity pattern - light rain starting in 15 minutes, lasting about 45 minutes
     for (int i = 0; i < PRECIPITATION_INTERVALS; i++) {
-        precipitation.precipitation_intensity[i] = rand() % 4;
+        if (i < 2) {
+            // No rain for first 15 minutes (3 * 5min intervals)
+            precipitation.precipitation_intensity[i] = 0;
+        } else if (i < 6) {
+            // Light rain for next 45 minutes (9 * 5min intervals)
+            precipitation.precipitation_intensity[i] = 1;
+        } else  if (i < 10) {
+            // Moderate rain for next 30 minutes (6 * 5min intervals)
+            precipitation.precipitation_intensity[i] = 2;
+        } else {
+            // Yes rain after that
+            precipitation.precipitation_intensity[i] = 3;
+        }
     }
     
     // Get the temperature from the first forecast hour
