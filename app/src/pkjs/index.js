@@ -27,6 +27,7 @@ var dummyMode = false;
 
 // Debug configuration
 var debug = false;
+var checkCache = true;
 
 function debugLog(message) {
     if (debug) {
@@ -44,7 +45,7 @@ Pebble.addEventListener("ready",
         if(localStorage.getItem('clay-settings')) {
             //debugLog((localStorage.getItem('clay-settings')));
             var settings = JSON.parse(localStorage.getItem('clay-settings'));
-            hourInterval = parseInt(settings.CFG_DISPLAY_INTERVAL, 10);
+            hourInterval = parseInt(settings.CFG_DISPLAY_INTERVAL, 10) || 2;
             refreshInterval = parseInt(settings.CFG_REFRESH_INTERVAL, 10) || 30;
 
         }
@@ -54,11 +55,19 @@ Pebble.addEventListener("ready",
         Pebble.sendAppMessage({"JS_READY": 1}, function() {
             debugLog("JSReady signal sent successfully");
             // Now start fetching weather data (check cache first)
-            checkCacheOrFetchWeather();
+            if(checkCache) {
+                checkCacheOrFetchWeather();
+            } else {
+                getLocation();
+            }
         }, function(e) {
             debugLog("JSReady signal failed: " + JSON.stringify(e));
             // Still try to fetch data even if JSReady failed
-            checkCacheOrFetchWeather();
+            if(checkCache) {
+                checkCacheOrFetchWeather();
+            } else {
+                getLocation();
+            }
         });
     }
 );
@@ -237,7 +246,7 @@ function requestWeatherData(location, dataSets) {
 
             if ("forecastHourly" in response) {
                 let hours = response.forecastHourly.hours;
-                for (let i = 0; forecastHours.length < MAX_HOURS; i += hourInterval) {
+                for (let i = 0; forecastHours.length < MAX_HOURS && i < hours.length; i += hourInterval) {
                     let hour = hours[i];
                     let forecastHour = parseWKForecastHour(hour, i);
                     forecastHours.push(forecastHour);

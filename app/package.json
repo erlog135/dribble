@@ -1,7 +1,7 @@
 {
   "name": "dribble",
   "author": "Logan Head",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "keywords": [
     "pebble-app"
   ],
@@ -161,6 +161,16 @@
           "type": "raw",
           "name": "PARTLY_CLOUDY_NIGHT_25PX",
           "file": "conditions/PartlyMoon_25px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "SLEEPY_MOON_50PX",
+          "file": "conditions/Moon_50px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "SLEEPY_MOON_25PX",
+          "file": "conditions/Moon_25px.pdc"
         },
         {
           "type": "raw",

@@ -121,20 +121,46 @@ const uint32_t EMOJI_RESOURCE_IDS[] = {
     RESOURCE_ID_EMOJI_WINKY_TONGUE    // 3: Winky Tongue
 };
 
+// Static variable to synchronize easter egg decision across both initialization functions
+static bool use_sleepy_moon = false;
+static bool moon_decided = false;
+
+//Determine if moon is sleepy or not
+static void decide_moon(void) {
+    if (!moon_decided) {
+        use_sleepy_moon = (rand() % 4 == 0);  // 1 in 4 chance
+        moon_decided = true;
+    }
+}
+
 GDrawCommandImage** init_25px_condition_images() {
+    // Make easter egg decision once (synchronized across both functions)
+    decide_moon();
+    
     GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * NUM_WEATHER_CONDITIONS);
     if (!images) return NULL;
     for (int i = 0; i < NUM_WEATHER_CONDITIONS; ++i) {
-        images[i] = gdraw_command_image_create_with_resource(CONDITION_RESOURCE_IDS_25PX[i]);
+        uint32_t resource_id = CONDITION_RESOURCE_IDS_25PX[i];
+        if (i == 11 && use_sleepy_moon) {  // CLEAR NIGHT condition
+            resource_id = RESOURCE_ID_SLEEPY_MOON_25PX;
+        }
+        images[i] = gdraw_command_image_create_with_resource(resource_id);
     }
     return images;
 }
 
 GDrawCommandImage** init_50px_condition_images() {
+    // Make easter egg decision once (synchronized across both functions)
+    decide_moon();
+    
     GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * NUM_WEATHER_CONDITIONS);
     if (!images) return NULL;
     for (int i = 0; i < NUM_WEATHER_CONDITIONS; ++i) {
-        images[i] = gdraw_command_image_create_with_resource(CONDITION_RESOURCE_IDS_50PX[i]);
+        uint32_t resource_id = CONDITION_RESOURCE_IDS_50PX[i];
+        if (i == 11 && use_sleepy_moon) {  // CLEAR NIGHT condition
+            resource_id = RESOURCE_ID_SLEEPY_MOON_50PX;
+        }
+        images[i] = gdraw_command_image_create_with_resource(resource_id);
     }
     return images;
 }
