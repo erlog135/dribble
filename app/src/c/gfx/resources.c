@@ -121,7 +121,6 @@ const uint32_t EMOJI_RESOURCE_IDS[] = {
     RESOURCE_ID_EMOJI_WINKY_TONGUE    // 3: Winky Tongue
 };
 
-// Static variable to synchronize easter egg decision across both initialization functions
 static bool use_sleepy_moon = false;
 static bool moon_decided = false;
 
@@ -134,7 +133,6 @@ static void decide_moon(void) {
 }
 
 GDrawCommandImage** init_25px_condition_images() {
-    // Make easter egg decision once (synchronized across both functions)
     decide_moon();
     
     GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * NUM_WEATHER_CONDITIONS);
@@ -150,7 +148,6 @@ GDrawCommandImage** init_25px_condition_images() {
 }
 
 GDrawCommandImage** init_50px_condition_images() {
-    // Make easter egg decision once (synchronized across both functions)
     decide_moon();
     
     GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * NUM_WEATHER_CONDITIONS);

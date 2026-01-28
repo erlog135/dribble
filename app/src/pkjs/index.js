@@ -3,7 +3,7 @@ var msgproc = require('./msgproc');
 var weatherkit = require('./weatherkit');
 var events = require('./events');
 
-var Clay = require('pebble-clay');
+var Clay = require('@rebble/clay');
 var clayConfig = require('./config');
 var clay = new Clay(clayConfig);
 
@@ -12,7 +12,6 @@ const { API_KEY } = require('./api_keys');
 var method = "GET";
 var availabilityURL = "https://weatherkit.apple.com/api/v1/availability/";
 var dataURL = "https://weatherkit.apple.com/api/v1/weather/";
-var xhr = new XMLHttpRequest();
 
 var language = "";
 
@@ -234,6 +233,7 @@ function requestWeatherData(location, dataSets) {
 
     debugLog("Requesting weather data");
     var url = dataURL + "en_US/" + location + "?dataSets=" + dataSets;
+    var xhr = new XMLHttpRequest();
 
     xhr.onload = function () {
         if (xhr.status === 200) {
@@ -330,6 +330,7 @@ function requestWeatherAvailability(location) {
     debugLog("Requesting weather availability");
     //var location = "41.1370/-76.6769";
     var url = availabilityURL + location;
+    var xhr = new XMLHttpRequest();
 
     xhr.onload = function () {
         if (xhr.status === 200) {
