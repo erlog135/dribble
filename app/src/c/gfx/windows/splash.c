@@ -195,26 +195,15 @@ static void handle_data_response(DictionaryIterator *iter) {
         return; // Don't process other data in this message
     }
 
-    // Handle hourly data as it arrives sequentially
-    for (int i = 0; i < 12; i++) {
-        Tuple* hour_package_tuple = dict_find(iter, MESSAGE_KEY_HOUR_PACKAGE + i);
-        if (hour_package_tuple) {
-            unpack_hour_package((HourPackage)hour_package_tuple->value->data, &forecast_hours[i]);
-            received_hours++;
-            
-            // Update progress
-            static char progress_text[64];
-            snprintf(progress_text, sizeof(progress_text), "Loading... %d/12", received_hours);
-            splash_set_status_text(progress_text);
-            
-            UTIL_LOG(UTIL_LOG_LEVEL_DEBUG, "Received hour %d data (total: %d/12)", i, received_hours);
-            
-            // Check if we have all the data (now waiting for precipitation)
-            if (received_hours >= 12) {
-                //splash_set_status_text("Loading precipitation...");
-                UTIL_LOG(UTIL_LOG_LEVEL_DEBUG, "All hourly data received, waiting for precipitation data");
-            }
-        }
+    // Handle all hourly data in a single 120-byte message
+    Tuple* hour_data_tuple = dict_find(iter, MESSAGE_KEY_HOUR_DATA);
+    if (hour_data_tuple) {
+        // Unpack all 12 hours from the 120-byte binary blob
+        unpack_all_hours((uint8_t*)hour_data_tuple->value->data, forecast_hours);
+        received_hours = 12;
+        
+        splash_set_status_text("Loading precipitation...");
+        UTIL_LOG(UTIL_LOG_LEVEL_DEBUG, "All hourly data received (120 bytes), waiting for precipitation data");
     }
 
     // Handle precipitation data

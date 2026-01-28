@@ -155,54 +155,33 @@ function getLocation() {
 
 
 function sendAllWeatherData() {
-    debugLog('Starting automatic sequential weather data transmission');
+    debugLog('Starting weather data transmission');
 
-    // Start sending hourly data sequentially
     if (forecastHours.length > 0) {
-        debugLog('Sending ' + forecastHours.length + ' forecast hours sequentially');
-        sendList(forecastHours);
+        debugLog('Packing ' + forecastHours.length + ' forecast hours into single 120-byte message');
+        
+        // Pack all hours into a single 120-byte array
+        var allHourData = msgproc.packAllHourData(forecastHours);
+        
+        // Send all hour data in a single message
+        Pebble.sendAppMessage({ "HOUR_DATA": allHourData }, function() {
+            debugLog('All hourly data sent successfully! Sending precipitation...');
+            if(precipitation != null) {
+                debugLog('Sending precipitation data');
+                sendPrecipitation();
+            } else {
+                debugLog('No precipitation data available, sending empty precipitation data');
+                // Send empty precipitation data (type 0, all intensities 0)
+                const emptyPrecipitation = msgproc.packPrecipitation(0, new Array(24).fill(0));
+                sendPrecipitationFromData(emptyPrecipitation);
+            }
+        }, function(e) {
+            debugLog('Hour data transmission failed: ' + JSON.stringify(e));
+        });
     } else {
         debugLog('No forecast hours to send, sending error response');
         sendResponseData(1); // Send error if no data
     }
-}
-
-function sendNextItem(items, index) {
-    // Build message
-    var key = keys.HOUR_PACKAGE + index;
-    var dict = {};
-    dict[key] = items[index];
-
-    debugLog('Sending item ' + (index + 1) + '/12');
-
-    // Send the message
-    Pebble.sendAppMessage(dict, function() {
-      // Use success callback to increment index
-      index++;
-
-      if(index < items.length) {
-        // Send next item
-        sendNextItem(items, index);
-      } else {
-        debugLog('All hourly data sent! Sending precipitation...');
-        if(precipitation != null) {
-            debugLog('Sending precipitation data');
-            sendPrecipitation();
-        } else {
-            debugLog('No precipitation data available, sending empty precipitation data');
-            // Send empty precipitation data (type 0, all intensities 0)
-            const emptyPrecipitation = msgproc.packPrecipitation(0, new Array(24).fill(0));
-            sendPrecipitationFromData(emptyPrecipitation);
-        }
-      }
-    }, function(e) {
-      debugLog('Item transmission failed at index: ' + index + ', error: ' + JSON.stringify(e));
-    });
-}
-  
-function sendList(items) {
-    var index = 0;
-    sendNextItem(items, index);
 }
 
 function sendPrecipitation() {

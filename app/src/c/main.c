@@ -14,10 +14,6 @@
 static Window* s_splash_window;
 static Window* s_viewer_window;
 
-uint8_t received_hours = 0;
-
-
-
 // Forward declarations
 static void handle_data_request(void);
 static void handle_midnight_wakeup(uint32_t wakeup_id, int32_t cookie);
@@ -58,9 +54,6 @@ static void splash_completion_handler(bool success) {
 static void handle_midnight_wakeup(uint32_t wakeup_id, int32_t cookie) {
   UTIL_LOG(UTIL_LOG_LEVEL_INFO, "Midnight wakeup occurred, refreshing weather data");
 
-  // Reset received hours counter for fresh data
-  received_hours = 0;
-
   // Trigger weather data refresh by calling the data request handler
   // This will fetch new weather data and update the display
   if (s_viewer_window) {
@@ -80,30 +73,6 @@ static void handle_data_request(void) {
   // In the new flow, we don't send requests - data comes automatically from PebbleKit JS
   // Just update the view with current data
   viewer_update_view(viewer_get_current_hour(), viewer_get_current_page());
-}
-
-
-
-
-
-
-
-static void hour_response_callback(DictionaryIterator *iter, void *context) {
-  // Process individual hour packages as they arrive sequentially
-  for (int i = 0; i < 12; i++) {
-    Tuple* hour_package_tuple = dict_find(iter, MESSAGE_KEY_HOUR_PACKAGE + i);
-    if (hour_package_tuple) {
-      unpack_hour_package((HourPackage)hour_package_tuple->value->data, &forecast_hours[i]);
-      received_hours++;
-      UTIL_LOG(UTIL_LOG_LEVEL_DEBUG, "Received hour %d data (total: %d/12)", i, received_hours);
-      
-      // Update view when we have complete data
-      if (received_hours >= 12) {
-        UTIL_LOG(UTIL_LOG_LEVEL_DEBUG, "All hourly data received, updating view");
-        viewer_update_view(viewer_get_current_hour(), viewer_get_current_page());
-      }
-    }
-  }
 }
 
 static void inbox_received_callback(DictionaryIterator *iter, void *context) {
@@ -136,9 +105,6 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
     }
     return; // Don't process other data in this message
   }
-
-  // Process hourly data
-  hour_response_callback(iter, context);
 
   // Handle precipitation data
   Tuple* precipitation_package_tuple = dict_find(iter, MESSAGE_KEY_PRECIPITATION_PACKAGE);

@@ -4,6 +4,14 @@
 #include "prefs.h"
 #include <string.h>
 
+// Unpack all 12 hour packages from a single 120-byte binary blob
+void unpack_all_hours(uint8_t* data, ForecastHour* forecast_hours_array) {
+    for (int i = 0; i < 12; i++) {
+        // Each hour package is 10 bytes, starting at offset i * 10
+        unpack_hour_package(&data[i * 10], &forecast_hours_array[i]);
+    }
+}
+
 // TODO: build wind icons here
 void unpack_hour_package(HourPackage weather_data, ForecastHour* forecast_hour) {
     // Hour (uint8)

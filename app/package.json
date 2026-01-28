@@ -42,7 +42,7 @@
       "REQUEST_DATA",
       "RESPONSE_DATA",
       "REQUEST_HOUR",
-      "HOUR_PACKAGE[12]",
+      "HOUR_DATA",
       "PRECIPITATION_PACKAGE"
     ],
     "resources": {

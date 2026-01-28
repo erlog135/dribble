@@ -44,6 +44,14 @@
 void unpack_hour_package(HourPackage weather_data, ForecastHour* forecast_hour);
 
 /*
+    Unpacks all 12 hour packages from a single 120-byte binary blob.
+    Each hour package is 10 bytes, stored sequentially.
+    
+    uint8[120]: 12 consecutive hour packages (10 bytes each)
+*/
+void unpack_all_hours(uint8_t* data, ForecastHour* forecast_hours_array);
+
+/*
     Special details can be provided to the current hour, such as precipitation
 
     uint8: precipitation type (0 for none)

@@ -138,6 +138,34 @@ function bufferToInts(buffer) {
 }
 
 /**
+ * Packs all 12 hour packages into a single 120-byte array for bulk transmission.
+ * Each hour package is 10 bytes, resulting in 12 * 10 = 120 bytes total.
+ * @param {Array} hourPackages - Array of 12 packed hour data arrays (each 10 bytes)
+ * @returns {Array} - Single 120-byte array containing all hour data in order
+ */
+function packAllHourData(hourPackages) {
+    const result = [];
+    for (let i = 0; i < 12; i++) {
+        if (i < hourPackages.length) {
+            // Add existing hour package data
+            for (let j = 0; j < hourPackages[i].length; j++) {
+                result.push(hourPackages[i][j]);
+            }
+            // Pad to 10 bytes if needed
+            for (let j = hourPackages[i].length; j < 10; j++) {
+                result.push(0);
+            }
+        } else {
+            // Pad with zeros for missing hours
+            for (let j = 0; j < 10; j++) {
+                result.push(0);
+            }
+        }
+    }
+    return result;
+}
+
+/**
  * Saves weather hour packages to localStorage with timestamp
  * @param {Array} hourPackages - Array of packed weather hour data
  */
@@ -239,6 +267,7 @@ function clearWeatherCache() {
 
 module.exports = {
     packHourData,
+    packAllHourData,
     packPrecipitation,
     saveWeatherCache,
     savePrecipitationCache,
