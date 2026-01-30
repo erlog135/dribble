@@ -145,7 +145,7 @@ void unpack_hour_package(HourPackage weather_data, ForecastHour* forecast_hour) 
             forecast_hour->wind_direction = 7;  // NW quadrant
         }
 
-        UTIL_LOG(UTIL_LOG_LEVEL_DEBUG, "wind vane direction: %d", settings->wind_vane_direction);
+        UTIL_LOG(APP_LOG_LEVEL_DEBUG, "wind vane direction: %d", settings->wind_vane_direction);
 
         if(settings->wind_vane_direction == 1) {
             forecast_hour->wind_direction = (forecast_hour->wind_direction + 4) % 8;

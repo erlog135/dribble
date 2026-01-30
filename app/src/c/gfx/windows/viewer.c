@@ -4,17 +4,19 @@
 #include "../pages/airflow.h"
 #include "../pages/conditions.h"
 #include "../pages/experiential.h"
+#ifndef PBL_PLATFORM_APLITE
 #include "../animation/animation.h"
 #include "../animation/text_animation.h"
 #include "../animation/image_animation.h"
 #include "../animation/transition.h"
 #include "../animation/background_animation.h"
+#endif
 #include "../../utils/weather.h"
 #include "../../utils/prefs.h"
 
 // Conditional logging for viewer module
 // Uncomment the line below to enable viewer debug logging
-// #define VIEWER_LOGGING
+#define VIEWER_LOGGING
 
 #ifdef VIEWER_LOGGING
   #define VIEWER_LOG(level, fmt, ...) APP_LOG(level, fmt, ##__VA_ARGS__)
@@ -61,8 +63,13 @@ static GColor get_background_color_for_forecast(uint8_t hour, uint8_t page);
 
 // Helper function to check if animations are enabled
 static bool animations_enabled(void) {
+#ifdef PBL_PLATFORM_APLITE
+    // Animations are not supported on Aplite platform
+    return false;
+#else
     ClaySettings* settings = prefs_get_settings();
     return settings->animate;
+#endif
 }
 
 // Helper function to update only images and content text for animation, without updating time text
@@ -156,16 +163,20 @@ static void background_animation_complete_page(void) {
  * @brief Draws the three images (prev, current, next) at their respective positions
  */
 static void draw_page_images(GContext* ctx) {
+#ifndef PBL_PLATFORM_APLITE
     // Don't draw images if the animation system is hiding them (only applies when animations enabled)
     // The animation system will handle drawing them progressively
     if (animations_enabled() && image_animation_are_images_hidden()) {
         return;
     }
+#endif
     
     // Get image positions (animated or normal)
     GPoint prev_pos, current_pos, next_pos;
     if(animations_enabled()) {
+#ifndef PBL_PLATFORM_APLITE
         transition_animation_get_image_positions(&prev_pos, &current_pos, &next_pos);
+#endif
     } else {
         // Use normal layout positions when animations disabled
         prev_pos = layout.prev_icon_pos;
@@ -204,14 +215,17 @@ static void draw_page_images(GContext* ctx) {
 // Click handlers for navigation
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
   if(animations_enabled()) {
+#ifndef PBL_PLATFORM_APLITE
     if(animating || animation_system_is_any_active() || background_animating) {
       VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Animation already active, ignoring up click");
       return;
     }
+#endif
   }
 
   if(hour_view > 0) {
     if(animations_enabled()) {
+#ifndef PBL_PLATFORM_APLITE
       // Start background animation for hour transition (up direction slides from top)
       background_animating = true;
       GColor animation_color = get_background_color_for_forecast(hour_view - 1, page_view);
@@ -232,6 +246,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
       VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Starting up animation - hour: %d, time: %s", hour_view, time_text);
       text_animation_start(ANIMATION_DIRECTION_UP, hour_view, time_text, content_text, animation_complete_up);
       image_animation_start(ANIMATION_DIRECTION_UP, hour_view, page_view, image_animation_complete_up);
+#endif
     } else {
       // Non-animated mode: directly update hour and view
       hour_view--;
@@ -258,10 +273,12 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
 
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *context) {
   if(animations_enabled()) {
+#ifndef PBL_PLATFORM_APLITE
     if(transition_animating || transition_animation_is_active() || background_animating) {
       VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Transition already active, ignoring select click");
       return;
     }
+#endif
   }
 
   page_view++;
@@ -270,6 +287,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *contex
   }
 
   if(animations_enabled()) {
+#ifndef PBL_PLATFORM_APLITE
     // Start background animation for page transition (slide from right)
     background_animating = true;
     GColor animation_color = get_background_color_for_forecast(hour_view, page_view);
@@ -282,6 +300,7 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *contex
     // Update the image animation system with the new page
     image_animation_set_current_page(page_view);
     update_view(hour_view, page_view);
+#endif
   } else {
     // Non-animated mode: directly update view and background color
     update_view(hour_view, page_view);
@@ -294,14 +313,17 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *contex
 
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context) {
   if(animations_enabled()) {
+#ifndef PBL_PLATFORM_APLITE
     if(animating || animation_system_is_any_active() || background_animating) {
       VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Animation already active, ignoring down click");
       return;
     }
+#endif
   }
 
   if(hour_view < 11) {
     if(animations_enabled()) {
+#ifndef PBL_PLATFORM_APLITE
       // Start background animation for hour transition (down direction slides from bottom)
       background_animating = true;
       GColor animation_color = get_background_color_for_forecast(hour_view + 1, page_view);
@@ -322,6 +344,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context)
       VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Starting down animation - hour: %d, time: %s", hour_view, time_text);
       text_animation_start(ANIMATION_DIRECTION_DOWN, hour_view, time_text, content_text, animation_complete_down);
       image_animation_start(ANIMATION_DIRECTION_DOWN, hour_view, page_view, image_animation_complete_down);
+#endif
     } else {
       // Non-animated mode: directly update hour and view
       hour_view++;
@@ -354,6 +377,7 @@ static void main_layer_update_proc(Layer* layer, GContext* ctx) {
 }
 
 static void init_layers(Layer* window_layer) {
+  VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Initializing layers");
   prev_time_layer = text_layer_create(layout.prev_time_bounds);
   text_layer_set_text(prev_time_layer, "9AM");
   text_layer_set_background_color(prev_time_layer, GColorClear);
@@ -373,20 +397,23 @@ static void init_layers(Layer* window_layer) {
   text_layer_set_text(next_time_layer, "1PM");
   text_layer_set_background_color(next_time_layer, GColorClear);
   text_layer_set_font(next_time_layer, fonts_get_system_font(FONT_KEY_LECO_20_BOLD_NUMBERS));
-  
+  VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Time layers initialized");
   // Register main layers for animation system (only if animations enabled)
   if(animations_enabled()) {
+#ifndef PBL_PLATFORM_APLITE
     text_animation_set_main_layers(current_time_layer, current_text_layer);
     text_animation_set_secondary_layers(prev_time_layer, next_time_layer);
 
     // Register layers for transition animation system
     transition_animation_set_layers(current_time_layer, current_text_layer, prev_time_layer, next_time_layer);
+#endif
   }
 
   layer_add_child(window_layer, text_layer_get_layer(prev_time_layer));
   layer_add_child(window_layer, text_layer_get_layer(current_time_layer));
   layer_add_child(window_layer, text_layer_get_layer(current_text_layer));
   layer_add_child(window_layer, text_layer_get_layer(next_time_layer));
+  VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Time layers added to window layer");
 
   Layer* conditions_layer = init_conditions_layers(window_layer, &prev_image, &current_image, &next_image);
   layer_add_child(window_layer, conditions_layer);
@@ -396,14 +423,16 @@ static void init_layers(Layer* window_layer) {
   
   Layer* exp_layer = init_experiential_layers(window_layer, &prev_image, &current_image, &next_image);
   layer_add_child(window_layer, exp_layer);
+  VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Image layers initialized");
 
   // Create a separate layer for drawing images
   images_layer = layer_create(layer_get_bounds(window_layer));
   layer_set_update_proc(images_layer, main_layer_update_proc);
   layer_add_child(window_layer, images_layer);
-  
+  VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Images layer added to window layer");
   // Set image layers for animation system AFTER images_layer is created (only if animations enabled)
   if(animations_enabled()) {
+#ifndef PBL_PLATFORM_APLITE
     text_animation_set_image_layers(images_layer, &prev_image, &current_image, &next_image);
 
     // Set image layers for transition animation system
@@ -413,7 +442,9 @@ static void init_layers(Layer* window_layer) {
     animation_system_init();
     text_animation_init(window_layer);
     transition_animation_init(window_layer);
+#endif
   }
+  VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Layers initialized");
 }
 
 // Get background color based on forecast data and current page
@@ -536,7 +567,9 @@ static void prv_window_load(Window *window) {
 
   // Initialize background animation first so it draws behind other layers (only if animations enabled)
   if(animations_enabled()) {
+#ifndef PBL_PLATFORM_APLITE
     background_animation_init(window_layer, window);
+#endif
   }
 
   init_layers(window_layer);
@@ -545,10 +578,12 @@ static void prv_window_load(Window *window) {
 static void prv_window_unload(Window *window) {
   // Clean up animation systems (only if animations were enabled)
   if(animations_enabled()) {
+#ifndef PBL_PLATFORM_APLITE
     background_animation_deinit();
     text_animation_deinit();
     transition_animation_deinit();
     animation_system_deinit();
+#endif
   }
   
   // Clean up any allocated images
@@ -595,9 +630,11 @@ Window* viewer_window_create(void) {
   
   // Initialize animation subsystems (only if animations enabled)
   if(animations_enabled()) {
+#ifndef PBL_PLATFORM_APLITE
     text_animation_init_system();
     transition_animation_init_system();
     background_animation_init_system();
+#endif
   }
 
   s_viewer_window = window_create();
@@ -614,9 +651,11 @@ void viewer_window_destroy(Window* window) {
   if (window && window == s_viewer_window) {
     // Clean up animation subsystems (only if animations were enabled)
     if(animations_enabled()) {
+#ifndef PBL_PLATFORM_APLITE
       background_animation_deinit_system();
       text_animation_deinit_system();
       transition_animation_deinit_system();
+#endif
     }
 
     window_destroy(window);

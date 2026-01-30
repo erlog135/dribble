@@ -4,7 +4,6 @@
 #include "utils/msgproc.h"
 #include "utils/prefs.h"
 #include "utils/demo.h"
-#include "utils/scheduler.h"
 #include "gfx/windows/viewer.h"
 #include "gfx/windows/splash.h"
 
@@ -16,12 +15,11 @@ static Window* s_viewer_window;
 
 // Forward declarations
 static void handle_data_request(void);
-static void handle_midnight_wakeup(uint32_t wakeup_id, int32_t cookie);
 
 // Splash completion handler
 static void splash_completion_handler(bool success) {
   if (success) {
-    UTIL_LOG(UTIL_LOG_LEVEL_DEBUG, "Splash loading successful, transitioning to viewer");
+    UTIL_LOG(APP_LOG_LEVEL_DEBUG, "Splash loading successful, transitioning to viewer");
     
     // Create and show the viewer window
     s_viewer_window = viewer_window_create();
@@ -33,31 +31,12 @@ static void splash_completion_handler(bool success) {
     // Update viewer with initial data
     viewer_update_view(0, 0);  // Start at hour 0, conditions page
 
-    // Schedule midnight wakeup now that app is ready
-    SchedulerStatus schedule_status = scheduler_schedule_midnight_wakeup();
-    if (schedule_status == SCHEDULER_SUCCESS) {
-      UTIL_LOG(UTIL_LOG_LEVEL_INFO, "Successfully scheduled midnight wakeup");
-    } else {
-      UTIL_LOG(UTIL_LOG_LEVEL_WARNING, "Failed to schedule midnight wakeup: %d", schedule_status);
-    }
-
     // Remove splash window after transition
     app_timer_register(500, (AppTimerCallback)window_stack_remove, s_splash_window);
   } else {
-    UTIL_LOG(UTIL_LOG_LEVEL_ERROR, "Splash loading failed");
+    UTIL_LOG(APP_LOG_LEVEL_ERROR, "Splash loading failed");
     // Splash window stays visible with error message
     // User can try again by restarting the app
-  }
-}
-
-// Midnight wakeup handler
-static void handle_midnight_wakeup(uint32_t wakeup_id, int32_t cookie) {
-  UTIL_LOG(UTIL_LOG_LEVEL_INFO, "Midnight wakeup occurred, refreshing weather data");
-
-  // Trigger weather data refresh by calling the data request handler
-  // This will fetch new weather data and update the display
-  if (s_viewer_window) {
-    handle_data_request();
   }
 }
 
@@ -86,7 +65,7 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
   // Check for JSReady signal from PebbleKit JS
   Tuple* js_ready_tuple = dict_find(iter, MESSAGE_KEY_JS_READY);
   if (js_ready_tuple) {
-    UTIL_LOG(UTIL_LOG_LEVEL_DEBUG, "Received JSReady signal from PebbleKit JS");
+    UTIL_LOG(APP_LOG_LEVEL_DEBUG, "Received JSReady signal from PebbleKit JS");
     return;
   }
 
@@ -94,13 +73,13 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
   Tuple* response_data_tuple = dict_find(iter, MESSAGE_KEY_RESPONSE_DATA);
   if (response_data_tuple) {
     int16_t response_data = response_data_tuple->value->int32;
-    UTIL_LOG(UTIL_LOG_LEVEL_DEBUG, "Response data: %d", response_data);
+    UTIL_LOG(APP_LOG_LEVEL_DEBUG, "Response data: %d", response_data);
 
     if(response_data == 2) {
-      UTIL_LOG(UTIL_LOG_LEVEL_ERROR, "Location error - unable to get current location");
+      UTIL_LOG(APP_LOG_LEVEL_ERROR, "Location error - unable to get current location");
       // TODO: Show location error screen or notification
     } else if(response_data == 1) {
-      UTIL_LOG(UTIL_LOG_LEVEL_ERROR, "Weather data fetch failed");
+      UTIL_LOG(APP_LOG_LEVEL_ERROR, "Weather data fetch failed");
       // TODO: Show error screen or something
     }
     return; // Don't process other data in this message
@@ -147,11 +126,8 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
     settings->refresh_interval = refresh_interval_tuple->value->int32;
   }
 
-  bool self_refresh_changed = false;
   if(self_refresh_tuple) {
-    bool old_self_refresh = settings->self_refresh;
     settings->self_refresh = self_refresh_tuple->value->int16 != 0;
-    self_refresh_changed = (old_self_refresh != settings->self_refresh);
   }
 
   if(display_interval_tuple) {
@@ -173,17 +149,11 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
 
 
   prefs_save();
-
-  // If self-refresh setting changed, update wakeup scheduling accordingly
-  if (self_refresh_changed) {
-    UTIL_LOG(UTIL_LOG_LEVEL_INFO, "Self-refresh setting changed, updating wakeup scheduling");
-    scheduler_cancel_wakeups_if_disabled();
-  }
 }
 
 static void inbox_dropped_callback(AppMessageResult reason, void *context) {
   // A message was received, but had to be dropped
-  UTIL_LOG(UTIL_LOG_LEVEL_ERROR, "Message dropped. Reason: %d", (int)reason);
+  UTIL_LOG(APP_LOG_LEVEL_ERROR, "Message dropped. Reason: %d", (int)reason);
 }
 
 static void outbox_sent_callback(DictionaryIterator *iter, void *context) {
@@ -194,7 +164,7 @@ static void outbox_sent_callback(DictionaryIterator *iter, void *context) {
 static void outbox_failed_callback(DictionaryIterator *iter,
                                       AppMessageResult reason, void *context) {
   // The message just sent failed to be delivered
-  UTIL_LOG(UTIL_LOG_LEVEL_ERROR, "Message send failed. Reason: %d", (int)reason);
+  UTIL_LOG(APP_LOG_LEVEL_ERROR, "Message send failed. Reason: %d", (int)reason);
 }
 
 
@@ -213,10 +183,6 @@ static void outbox_failed_callback(DictionaryIterator *iter,
 static void prv_init(void) {
   prefs_load();
 
-  // Initialize the scheduler service
-  scheduler_init();
-  scheduler_set_wakeup_handler(handle_midnight_wakeup);
-
   // Create and show the splash window first
   s_splash_window = splash_window_create();
   splash_set_completion_callback(splash_completion_handler);
@@ -233,7 +199,7 @@ static void prv_init(void) {
 
   app_message_open(APP_MESSAGE_INBOX_SIZE_MINIMUM, APP_MESSAGE_INBOX_SIZE);
 
-  UTIL_LOG(UTIL_LOG_LEVEL_DEBUG, "inbox size: %lu", (uint32_t)app_message_inbox_size_maximum());
+  UTIL_LOG(APP_LOG_LEVEL_DEBUG, "inbox size: %lu", (uint32_t)app_message_inbox_size_maximum());
   
   // Start loading weather data
   splash_start_loading();
@@ -247,15 +213,12 @@ static void prv_deinit(void) {
   if (s_splash_window) {
     splash_window_destroy(s_splash_window);
   }
-
-  // Deinitialize the scheduler service
-  scheduler_deinit();
 }
 
 int main(void) {
   prv_init();
 
-  UTIL_LOG(UTIL_LOG_LEVEL_DEBUG, "Done initializing, pushed splash window: %p", s_splash_window);
+  UTIL_LOG(APP_LOG_LEVEL_DEBUG, "Done initializing, pushed splash window: %p", s_splash_window);
 
   app_event_loop();
   prv_deinit();
