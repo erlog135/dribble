@@ -57,7 +57,7 @@ typedef uint8_t* PrecipitationPackage;
 typedef struct forecast_hour {
     uint8_t wind_speed;
     int8_t wind_direction;
-    uint8_t wind_speed_icon;
+    uint32_t wind_speed_resource_id;  // Resource ID for the wind speed icon
     uint8_t conditions_icon;
     uint8_t experiential_icon;
     char hour_string[5];

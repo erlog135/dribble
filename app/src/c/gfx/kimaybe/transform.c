@@ -2,7 +2,6 @@
 
 #include "kimaybe.h"
 #include "transform.h"
-#include "../dcim.h"
 
 // Conditional logging for transform module
 // Uncomment the line below to enable transform debug logging
@@ -18,6 +17,29 @@
 //or, the offset of each slice animation relative to the total duration
 //lower to make more uniform, and higher to make it more stretchy
 #define KM_DURATION_DELAY_RATIO 0.15f
+
+// Check if a GDrawCommandImage uses precise coordinates
+// Only way I know to check if an image is precise is to check if any of the points
+// (in int16 representation) are outside the image bounds
+static bool is_draw_command_image_precise(GDrawCommandImage* draw_command_image) {
+    GDrawCommandList* cmd_list = gdraw_command_image_get_command_list(draw_command_image);
+    GSize img_size = gdraw_command_image_get_bounds_size(draw_command_image);
+    
+    size_t num_commands = gdraw_command_list_get_num_commands(cmd_list);
+    for(size_t cmd_idx = 0; cmd_idx < num_commands; cmd_idx++) {
+        GDrawCommand* cmd = gdraw_command_list_get_command(cmd_list, cmd_idx);
+        size_t num_points = gdraw_command_get_num_points(cmd);
+        
+        for(size_t pt_idx = 0; pt_idx < num_points; pt_idx++) {
+            GPoint point = gdraw_command_get_point(cmd, pt_idx);
+            if(point.x >= img_size.w || point.y >= img_size.h || point.x < 0 || point.y < 0) {
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
 
 static void add_point_to_slice(KMAnimationPoint* point, int slice_index, KMAnimation* kmanim) {
     if (!point || !kmanim || slice_index < 0 || slice_index >= KM_LINEAR_SLICES) {

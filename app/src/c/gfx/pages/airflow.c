@@ -1,6 +1,5 @@
 #include "airflow.h"
 #include "../layout.h"
-#include "../dcim.h"
 #include "../resources.h"
 #include "../../utils/weather.h"
 
@@ -33,13 +32,28 @@ static GDrawCommandImage** next_image_ref;
 static int radius = 30;        // Size of the anemometer
 static int cup_size = 15;      // Size of the cups ( ͡° ͜ʖ ͡°)
 
-// Wind vane configuration
-static GDrawCommandImage* wind_vane_src_image;
-static GDrawCommandImage* wind_vane_angle_src_image;
-static GDrawCommandImage** wind_speed_src_images;
+// Wind vane and wind speed configuration
+static GDrawCommandImage** wind_vane_images;      // Array of 8 directional wind vanes
+static GDrawCommandImage** wind_speed_images;     // Array of 24 wind speed images (3 speeds × 8 directions)
 
 static void frame_update();
 static void update_icons();
+
+// Helper function to get wind speed image index from resource ID
+static int get_wind_speed_image_index(uint32_t resource_id) {
+    if (resource_id == 0) return -1;
+    
+    // Calculate index from resource ID
+    if (resource_id >= RESOURCE_ID_WIND_SPEED_SLOW_N && resource_id <= RESOURCE_ID_WIND_SPEED_SLOW_NW) {
+        return resource_id - RESOURCE_ID_WIND_SPEED_SLOW_N;
+    } else if (resource_id >= RESOURCE_ID_WIND_SPEED_MED_N && resource_id <= RESOURCE_ID_WIND_SPEED_MED_NW) {
+        return 8 + (resource_id - RESOURCE_ID_WIND_SPEED_MED_N);
+    } else if (resource_id >= RESOURCE_ID_WIND_SPEED_FAST_N && resource_id <= RESOURCE_ID_WIND_SPEED_FAST_NW) {
+        return 16 + (resource_id - RESOURCE_ID_WIND_SPEED_FAST_N);
+    }
+    
+    return -1;
+}
 
 //timeout functions for if view doesn't change for a while
 //stops the animation, hopefully saving battery
@@ -58,48 +72,49 @@ void set_airflow_view(int hour) {
     if (is_active) {
         // Get the wind speed icon for previous hour if available
         if (hour > 0) {
-            uint8_t prev_wind_speed_icon = forecast_hours[hour-1].wind_speed_icon;
-            uint8_t dir = (forecast_hours[hour-1].wind_direction + 2) % 8;
-            dcim_8angle_from_src(prev_image_ref, dir, wind_speed_src_images[prev_wind_speed_icon], wind_speed_src_images[prev_wind_speed_icon+1]);
+            uint32_t prev_resource_id = forecast_hours[hour-1].wind_speed_resource_id;
+            int prev_index = get_wind_speed_image_index(prev_resource_id);
+            if (prev_index >= 0 && wind_speed_images[prev_index]) {
+                *prev_image_ref = wind_speed_images[prev_index];
+            } else {
+                *prev_image_ref = NULL;
+            }
         } else {
             // Destroy existing image before setting to NULL
-            if (*prev_image_ref) {
-                gdraw_command_image_destroy(*prev_image_ref);
+            if (was_active && *prev_image_ref) {
+                // Don't destroy - it's from our array
             }
             *prev_image_ref = NULL;
         }
 
-        // Current image is the wind vane
-
-        dcim_8angle_from_src(current_image_ref, (forecast_hours[hour].wind_direction + 2) % 8, wind_vane_src_image, wind_vane_angle_src_image);
+        // Current image is the wind vane for this hour's direction
+        int8_t vane_dir = forecast_hours[hour].wind_direction;
+        if (vane_dir >= 0 && vane_dir < 8 && wind_vane_images[vane_dir]) {
+            *current_image_ref = wind_vane_images[vane_dir];
+        } else {
+            *current_image_ref = NULL;
+        }
         
         // Get the wind speed icon for next hour if available
         if (hour < 11) {
-            uint8_t next_wind_speed_icon = forecast_hours[hour+1].wind_speed_icon;
-            uint8_t dir = (forecast_hours[hour+1].wind_direction + 2) % 8;
-            dcim_8angle_from_src(next_image_ref, dir, wind_speed_src_images[next_wind_speed_icon], wind_speed_src_images[next_wind_speed_icon+1]);
+            uint32_t next_resource_id = forecast_hours[hour+1].wind_speed_resource_id;
+            int next_index = get_wind_speed_image_index(next_resource_id);
+            if (next_index >= 0 && wind_speed_images[next_index]) {
+                *next_image_ref = wind_speed_images[next_index];
+            } else {
+                *next_image_ref = NULL;
+            }
         } else {
             // Destroy existing image before setting to NULL
-            if (*next_image_ref) {
-                gdraw_command_image_destroy(*next_image_ref);
+            if (was_active && *next_image_ref) {
+                // Don't destroy - it's from our array
             }
             *next_image_ref = NULL;
         }
     } else {
         // Clear all image references when inactive
-        // Only destroy clones if WE were previously active (meaning we own these clones)
-        // If we weren't active, these pointers belong to another page and shouldn't be touched
-        if (was_active) {
-            if (*prev_image_ref) {
-                gdraw_command_image_destroy(*prev_image_ref);
-            }
-            if (*current_image_ref) {
-                gdraw_command_image_destroy(*current_image_ref);
-            }
-            if (*next_image_ref) {
-                gdraw_command_image_destroy(*next_image_ref);
-            }
-        }
+        // Images are owned by the init arrays, not by individual pages
+        // So we just set pointers to NULL without destroying
         *prev_image_ref = NULL;
         *current_image_ref = NULL;
         *next_image_ref = NULL;
@@ -196,13 +211,41 @@ Layer* init_airflow_layers(Layer* window_layer, GDrawCommandImage** prev_image, 
     current_image_ref = current_image;
     next_image_ref = next_image;
 
-    // Load the wind vane PDC
-    wind_vane_src_image = init_wind_vane_image();
-    wind_vane_angle_src_image = init_wind_vane_angle_image();
-    wind_speed_src_images = init_wind_speed_images();
-
+    // Load the wind vane and wind speed images smartly (only used directions/speeds)
+    wind_vane_images = init_wind_vane_images();
+    wind_speed_images = init_wind_speed_images();
 
     return airflow_layer;
+}
+
+void deinit_airflow_layers() {
+    // Clean up wind vane images
+    if (wind_vane_images) {
+        deinit_wind_vane_images(wind_vane_images);
+        wind_vane_images = NULL;
+    }
+    
+    // Clean up wind speed images
+    if (wind_speed_images) {
+        deinit_wind_speed_images(wind_speed_images);
+        wind_speed_images = NULL;
+    }
+    
+    // Clean up the layer
+    if (airflow_layer) {
+        layer_destroy(airflow_layer);
+        airflow_layer = NULL;
+    }
+    
+    // Cancel any active timers
+    if (frame_timer) {
+        app_timer_cancel(frame_timer);
+        frame_timer = NULL;
+    }
+    if (timeout_timer) {
+        app_timer_cancel(timeout_timer);
+        timeout_timer = NULL;
+    }
 }
 
 void draw_airflow(Layer* layer, GContext* ctx) {

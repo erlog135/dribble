@@ -1,6 +1,5 @@
 #include "experiential.h"
 #include "../layout.h"
-#include "../dcim.h"
 #include "../resources.h"
 #include "../../utils/weather.h"
 

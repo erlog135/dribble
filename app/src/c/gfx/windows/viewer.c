@@ -478,8 +478,20 @@ static GColor get_background_color_for_forecast(uint8_t hour, uint8_t page) {
       }
       
     case VIEW_PAGE_AIRFLOW:
-      // Use airflow intensity based on wind speed icon
-      return get_airflow_color(forecast_hours[hour].wind_speed_icon / 2); // Convert 0,2,4 to 0,1,2
+      // Use airflow intensity based on wind speed resource ID
+      // Extract speed level from resource ID: Slow=0, Med=1, Fast=2
+      {
+        uint32_t resource_id = forecast_hours[hour].wind_speed_resource_id;
+        int speed_level = 0;  // Default to slow
+        
+        if (resource_id >= RESOURCE_ID_WIND_SPEED_MED_N && resource_id <= RESOURCE_ID_WIND_SPEED_MED_NW) {
+          speed_level = 1;  // Medium
+        } else if (resource_id >= RESOURCE_ID_WIND_SPEED_FAST_N && resource_id <= RESOURCE_ID_WIND_SPEED_FAST_NW) {
+          speed_level = 2;  // Fast
+        }
+        
+        return get_airflow_color(speed_level);
+      }
       
     case VIEW_PAGE_EXPERIENTIAL:
       // Use experiential icon color
@@ -622,6 +634,7 @@ static void prv_window_unload(Window *window) {
   }
 
   deinit_conditions_layers();
+  deinit_airflow_layers();
   deinit_experiential_layers();
 }
 

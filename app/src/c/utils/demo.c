@@ -45,14 +45,25 @@ void demo_populate_forecast_hours(void) {
         forecast_hours[i].wind_speed = preset->wind_speed;
         forecast_hours[i].wind_direction = preset->wind_dir / 2;  // Convert to 0-7 range
         
-        // Set wind speed icon based on wind speed
+        // Calculate wind speed level and resource ID based on wind speed
+        uint8_t wind_speed_level;
         if (preset->wind_speed <= 16) {
-            forecast_hours[i].wind_speed_icon = 0;
+            wind_speed_level = 0;  // Slow
         } else if (preset->wind_speed <= 32) {
-            forecast_hours[i].wind_speed_icon = 2;
+            wind_speed_level = 1;  // Med
         } else {
-            forecast_hours[i].wind_speed_icon = 4;
+            wind_speed_level = 2;  // Fast
         }
+        
+        // Base resource IDs for each speed level (first in each group)
+        const uint32_t speed_base_ids[] = {
+            RESOURCE_ID_WIND_SPEED_SLOW_N,   // 0: Slow
+            RESOURCE_ID_WIND_SPEED_MED_N,    // 1: Med
+            RESOURCE_ID_WIND_SPEED_FAST_N    // 2: Fast
+        };
+        
+        // Calculate resource ID: base + direction offset
+        forecast_hours[i].wind_speed_resource_id = speed_base_ids[wind_speed_level] + forecast_hours[i].wind_direction;
         
         // Set condition and experiential icons
         forecast_hours[i].conditions_icon = preset->conditions_icon;

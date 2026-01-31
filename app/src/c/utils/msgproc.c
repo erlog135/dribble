@@ -30,15 +30,16 @@ void unpack_hour_package(HourPackage weather_data, ForecastHour* forecast_hour) 
 
 
     // Set wind speed icon based on wind speed thresholds
+    uint8_t wind_speed_level;  // 0 = slow, 1 = med, 2 = fast
     if (wind_speed <= 19) { 
         //beaufort 3 and below
-        forecast_hour->wind_speed_icon = 0;
+        wind_speed_level = 0;  // Slow
     } else if (wind_speed <= 38) { 
         //beaufort 5 and below
-        forecast_hour->wind_speed_icon = 2; 
+        wind_speed_level = 1;  // Med
     } else { 
         //beaufort 6 and above
-        forecast_hour->wind_speed_icon = 4;
+        wind_speed_level = 2;  // Fast
     }
 
     // Wind gust speed (uint8) and data flags
@@ -147,9 +148,31 @@ void unpack_hour_package(HourPackage weather_data, ForecastHour* forecast_hour) 
 
         UTIL_LOG(APP_LOG_LEVEL_DEBUG, "wind vane direction: %d", settings->wind_vane_direction);
 
-        if(settings->wind_vane_direction == 1) {
+        // The incoming wind direction represents where wind is coming FROM (meteorological convention)
+        // If wind_vane_direction == 0 (wind heading), we need to show where wind is blowing TO
+        // So we rotate 180 degrees (add 4 in our 8-direction system)
+        if(settings->wind_vane_direction == 0) {
             forecast_hour->wind_direction = (forecast_hour->wind_direction + 4) % 8;
         }
+
+        // Compute the wind speed resource ID based on speed level and direction
+        // Resource IDs are defined in package.json as:
+        // WIND_SPEED_SLOW_N, WIND_SPEED_SLOW_NE, WIND_SPEED_SLOW_E, etc.
+        // WIND_SPEED_MED_N, WIND_SPEED_MED_NE, WIND_SPEED_MED_E, etc.
+        // WIND_SPEED_FAST_N, WIND_SPEED_FAST_NE, WIND_SPEED_FAST_E, etc.
+        
+        // Base resource IDs for each speed level (first in each group)
+        const uint32_t speed_base_ids[] = {
+            RESOURCE_ID_WIND_SPEED_SLOW_N,   // 0: Slow
+            RESOURCE_ID_WIND_SPEED_MED_N,    // 1: Med
+            RESOURCE_ID_WIND_SPEED_FAST_N    // 2: Fast
+        };
+        
+        // Calculate resource ID: base + direction offset
+        forecast_hour->wind_speed_resource_id = speed_base_ids[wind_speed_level] + forecast_hour->wind_direction;
+    } else {
+        // No wind direction available, set resource ID to 0 (will not be used)
+        forecast_hour->wind_speed_resource_id = 0;
     }
 
     // Add wind gust if available

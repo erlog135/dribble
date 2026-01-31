@@ -226,35 +226,114 @@ void deinit_axis_image(GDrawCommandImage* axis_image) {
 }
 
 // Airflow image functions
-GDrawCommandImage* init_wind_vane_image() {
-    return gdraw_command_image_create_with_resource(RESOURCE_ID_WIND_VANE);
-}
-
-GDrawCommandImage* init_wind_vane_angle_image() {
-    return gdraw_command_image_create_with_resource(RESOURCE_ID_WIND_VANE_ANGLE);
+GDrawCommandImage** init_wind_vane_images() {
+    // Allocate array for 8 directional wind vanes (N, NE, E, SE, S, SW, W, NW)
+    GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * 8);
+    if (!images) return NULL;
+    
+    // Initialize all entries to NULL
+    for (int i = 0; i < 8; ++i) {
+        images[i] = NULL;
+    }
+    
+    // Scan forecast_hours to find which wind directions are actually used
+    bool used[8] = {false};
+    for (int hour = 0; hour < 12; ++hour) {
+        int8_t dir = forecast_hours[hour].wind_direction;
+        if (dir >= 0 && dir < 8) {
+            used[dir] = true;
+        }
+    }
+    
+    // Resource IDs for wind vane directions (N, NE, E, SE, S, SW, W, NW)
+    const uint32_t WIND_VANE_RESOURCE_IDS[] = {
+        RESOURCE_ID_WIND_VANE_N,
+        RESOURCE_ID_WIND_VANE_NE,
+        RESOURCE_ID_WIND_VANE_E,
+        RESOURCE_ID_WIND_VANE_SE,
+        RESOURCE_ID_WIND_VANE_S,
+        RESOURCE_ID_WIND_VANE_SW,
+        RESOURCE_ID_WIND_VANE_W,
+        RESOURCE_ID_WIND_VANE_NW
+    };
+    
+    // Only load images for directions that are actually used
+    for (int i = 0; i < 8; ++i) {
+        if (used[i]) {
+            images[i] = gdraw_command_image_create_with_resource(WIND_VANE_RESOURCE_IDS[i]);
+        }
+    }
+    
+    return images;
 }
 
 GDrawCommandImage** init_wind_speed_images() {
-    GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * 6);  // 3 regular + 3 angled
+    // Allocate array for 24 wind speed images (3 speeds × 8 directions)
+    GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * 24);
     if (!images) return NULL;
     
-    // Initialize the three regular wind speed images
-    images[0] = gdraw_command_image_create_with_resource(RESOURCE_ID_WIND_SPEED_1);
-    images[2] = gdraw_command_image_create_with_resource(RESOURCE_ID_WIND_SPEED_2);
-    images[4] = gdraw_command_image_create_with_resource(RESOURCE_ID_WIND_SPEED_3);
+    // Initialize all entries to NULL
+    for (int i = 0; i < 24; ++i) {
+        images[i] = NULL;
+    }
     
-    // Initialize the three angled wind speed images
-    images[1] = gdraw_command_image_create_with_resource(RESOURCE_ID_WIND_SPEED_1_ANGLE);
-    images[3] = gdraw_command_image_create_with_resource(RESOURCE_ID_WIND_SPEED_2_ANGLE);
-    images[5] = gdraw_command_image_create_with_resource(RESOURCE_ID_WIND_SPEED_3_ANGLE);
+    // Scan forecast_hours to find which wind speed resource IDs are actually used
+    bool used[24] = {false};
+    for (int hour = 0; hour < 12; ++hour) {
+        uint32_t resource_id = forecast_hours[hour].wind_speed_resource_id;
+        if (resource_id != 0) {
+            // Calculate index from resource ID
+            // Slow = 0-7, Med = 8-15, Fast = 16-23
+            int index = -1;
+            if (resource_id >= RESOURCE_ID_WIND_SPEED_SLOW_N && resource_id <= RESOURCE_ID_WIND_SPEED_SLOW_NW) {
+                index = resource_id - RESOURCE_ID_WIND_SPEED_SLOW_N;
+            } else if (resource_id >= RESOURCE_ID_WIND_SPEED_MED_N && resource_id <= RESOURCE_ID_WIND_SPEED_MED_NW) {
+                index = 8 + (resource_id - RESOURCE_ID_WIND_SPEED_MED_N);
+            } else if (resource_id >= RESOURCE_ID_WIND_SPEED_FAST_N && resource_id <= RESOURCE_ID_WIND_SPEED_FAST_NW) {
+                index = 16 + (resource_id - RESOURCE_ID_WIND_SPEED_FAST_N);
+            }
+            
+            if (index >= 0 && index < 24) {
+                used[index] = true;
+            }
+        }
+    }
+    
+    // Resource ID base for each speed level
+    const uint32_t base_ids[] = {
+        RESOURCE_ID_WIND_SPEED_SLOW_N,
+        RESOURCE_ID_WIND_SPEED_MED_N,
+        RESOURCE_ID_WIND_SPEED_FAST_N
+    };
+    
+    // Only load images that are actually used
+    for (int speed = 0; speed < 3; ++speed) {
+        for (int dir = 0; dir < 8; ++dir) {
+            int index = speed * 8 + dir;
+            if (used[index]) {
+                images[index] = gdraw_command_image_create_with_resource(base_ids[speed] + dir);
+            }
+        }
+    }
     
     return images;
+}
+
+void deinit_wind_vane_images(GDrawCommandImage** wind_vane_images) {
+    if (!wind_vane_images) return;
+    
+    for (int i = 0; i < 8; ++i) {
+        if (wind_vane_images[i]) {
+            gdraw_command_image_destroy(wind_vane_images[i]);
+        }
+    }
+    free(wind_vane_images);
 }
 
 void deinit_wind_speed_images(GDrawCommandImage** wind_speed_images) {
     if (!wind_speed_images) return;
     
-    for (int i = 0; i < 6; ++i) {  // Clean up all 6 images
+    for (int i = 0; i < 24; ++i) {
         if (wind_speed_images[i]) {
             gdraw_command_image_destroy(wind_speed_images[i]);
         }

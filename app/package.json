@@ -216,43 +216,163 @@
         },
         {
           "type": "raw",
-          "name": "WIND_VANE",
-          "file": "airflow/WindVane.pdc"
+          "name": "WIND_VANE_N",
+          "file": "airflow/Vane_N.pdc"
         },
         {
           "type": "raw",
-          "name": "WIND_VANE_ANGLE",
-          "file": "airflow/WindVaneAngle.pdc"
+          "name": "WIND_VANE_NE",
+          "file": "airflow/Vane_NE.pdc"
         },
         {
           "type": "raw",
-          "name": "WIND_SPEED_1",
-          "file": "airflow/WindSpeed1.pdc"
+          "name": "WIND_VANE_E",
+          "file": "airflow/Vane_E.pdc"
         },
         {
           "type": "raw",
-          "name": "WIND_SPEED_1_ANGLE",
-          "file": "airflow/WindSpeed1Angle.pdc"
+          "name": "WIND_VANE_SE",
+          "file": "airflow/Vane_SE.pdc"
         },
         {
           "type": "raw",
-          "name": "WIND_SPEED_2",
-          "file": "airflow/WindSpeed2.pdc"
+          "name": "WIND_VANE_S",
+          "file": "airflow/Vane_S.pdc"
         },
         {
           "type": "raw",
-          "name": "WIND_SPEED_2_ANGLE",
-          "file": "airflow/WindSpeed2Angle.pdc"
+          "name": "WIND_VANE_SW",
+          "file": "airflow/Vane_SW.pdc"
         },
         {
           "type": "raw",
-          "name": "WIND_SPEED_3",
-          "file": "airflow/WindSpeed3.pdc"
+          "name": "WIND_VANE_W",
+          "file": "airflow/Vane_W.pdc"
         },
         {
           "type": "raw",
-          "name": "WIND_SPEED_3_ANGLE",
-          "file": "airflow/WindSpeed3Angle.pdc"
+          "name": "WIND_VANE_NW",
+          "file": "airflow/Vane_NW.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_SLOW_N",
+          "file": "airflow/Slow_N.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_SLOW_NE",
+          "file": "airflow/Slow_NE.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_SLOW_E",
+          "file": "airflow/Slow_E.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_SLOW_SE",
+          "file": "airflow/Slow_SE.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_SLOW_S",
+          "file": "airflow/Slow_S.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_SLOW_SW",
+          "file": "airflow/Slow_SW.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_SLOW_W",
+          "file": "airflow/Slow_W.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_SLOW_NW",
+          "file": "airflow/Slow_NW.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_MED_N",
+          "file": "airflow/Med_N.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_MED_NE",
+          "file": "airflow/Med_NE.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_MED_E",
+          "file": "airflow/Med_E.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_MED_SE",
+          "file": "airflow/Med_SE.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_MED_S",
+          "file": "airflow/Med_S.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_MED_SW",
+          "file": "airflow/Med_SW.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_MED_W",
+          "file": "airflow/Med_W.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_MED_NW",
+          "file": "airflow/Med_NW.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_FAST_N",
+          "file": "airflow/Fast_N.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_FAST_NE",
+          "file": "airflow/Fast_NE.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_FAST_E",
+          "file": "airflow/Fast_E.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_FAST_SE",
+          "file": "airflow/Fast_SE.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_FAST_S",
+          "file": "airflow/Fast_S.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_FAST_SW",
+          "file": "airflow/Fast_SW.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_FAST_W",
+          "file": "airflow/Fast_W.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "WIND_SPEED_FAST_NW",
+          "file": "airflow/Fast_NW.pdc"
         },
         {
           "type": "raw",

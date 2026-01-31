@@ -3,6 +3,7 @@
 #include <pebble.h>
 
 Layer* init_airflow_layers(Layer* window_layer, GDrawCommandImage** prev_image, GDrawCommandImage** current_image, GDrawCommandImage** next_image);
+void deinit_airflow_layers();
 void draw_airflow(Layer* layer, GContext* ctx);
 
 /**

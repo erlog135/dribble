@@ -18,9 +18,9 @@ GDrawCommandImage* init_axis_large_image();
 void deinit_axis_image(GDrawCommandImage* axis_image);
 
 // Airflow image functions
-GDrawCommandImage* init_wind_vane_image();
-GDrawCommandImage* init_wind_vane_angle_image();
-GDrawCommandImage** init_wind_speed_images();  // Returns array of 6 images: 3 regular + 3 angled
+GDrawCommandImage** init_wind_vane_images();  // Returns array of 8 directional wind vanes
+GDrawCommandImage** init_wind_speed_images();  // Returns array of 24 images: 3 speeds × 8 directions
+void deinit_wind_vane_images(GDrawCommandImage** wind_vane_images);
 void deinit_wind_speed_images(GDrawCommandImage** wind_speed_images);
 
 // Experiential image functions
