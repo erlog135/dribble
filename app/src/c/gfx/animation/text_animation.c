@@ -97,7 +97,7 @@ void text_animation_init(Layer* parent_layer) {
     // Create temporary incoming time layer
     s_text_animation_context.temp_incoming_time_layer = text_layer_create(layout.current_time_bounds);
     text_layer_set_background_color(s_text_animation_context.temp_incoming_time_layer, GColorClear);
-    text_layer_set_font(s_text_animation_context.temp_incoming_time_layer, fonts_get_system_font(FONT_KEY_LECO_20_BOLD_NUMBERS));
+    text_layer_set_font(s_text_animation_context.temp_incoming_time_layer, fonts_get_system_font(layout.time_font_key));
     layer_set_hidden(text_layer_get_layer(s_text_animation_context.temp_incoming_time_layer), true);
     
     // Add temp incoming time layer to animation layer

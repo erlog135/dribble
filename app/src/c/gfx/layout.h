@@ -19,6 +19,10 @@ typedef struct {
     // Text layer dimensions
     int16_t text_height;
     int16_t text_width;
+
+    // Font keys
+    char* time_font_key;
+    char* text_font_key;
     
     // Icon dimensions
     int16_t icon_small;
@@ -98,8 +102,17 @@ static void layout_init(int16_t screen_width, int16_t screen_height, bool is_rou
     }
     
     // Set text dimensions
-    layout.text_height = 20;
+    layout.text_height = layout.is_pixel_dense ? 30 : 20;
     layout.text_width = layout.screen_width - layout.padding_left - layout.padding_right;
+    
+    //Font keys
+    #ifdef PBL_PLATFORM_APLITE
+        layout.time_font_key = FONT_KEY_GOTHIC_18_BOLD;
+    #else
+        layout.time_font_key = layout.is_pixel_dense ? FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM : FONT_KEY_LECO_20_BOLD_NUMBERS;
+    #endif
+    
+    layout.text_font_key = layout.is_pixel_dense ? FONT_KEY_GOTHIC_28 : FONT_KEY_GOTHIC_18;
     
     // Set icon dimensions
     layout.icon_small = 25;

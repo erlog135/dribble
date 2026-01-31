@@ -131,10 +131,15 @@ static void splash_window_load(Window *window) {
 
     // Initialize layout first
     layout_init(
-        bounds.size.w, 
-        bounds.size.h, 
-        PBL_IF_ROUND_ELSE(true, false), 
-        (watch_info_get_model() == WATCH_INFO_MODEL_PEBBLE_TIME_2)); // TODO: make this a setting
+        bounds.size.w,
+        bounds.size.h,
+        PBL_IF_ROUND_ELSE(true, false),
+    #ifdef PBL_PLATFORM_EMERY
+        true
+    #else
+        false
+    #endif
+    );
 
     // Create image layer using layout bounds for top third
     image_layer = layer_create(layout.splash_image_bounds);

@@ -381,22 +381,22 @@ static void init_layers(Layer* window_layer) {
   prev_time_layer = text_layer_create(layout.prev_time_bounds);
   text_layer_set_text(prev_time_layer, "9AM");
   text_layer_set_background_color(prev_time_layer, GColorClear);
-  text_layer_set_font(prev_time_layer, fonts_get_system_font(FONT_KEY_LECO_20_BOLD_NUMBERS));
+  text_layer_set_font(prev_time_layer, fonts_get_system_font(layout.time_font_key));
 
   current_time_layer = text_layer_create(layout.current_time_bounds);
   text_layer_set_text(current_time_layer, "11AM");
   text_layer_set_background_color(current_time_layer, GColorClear);
-  text_layer_set_font(current_time_layer, fonts_get_system_font(FONT_KEY_LECO_20_BOLD_NUMBERS));
+  text_layer_set_font(current_time_layer, fonts_get_system_font(layout.time_font_key));
 
   current_text_layer = text_layer_create(layout.current_text_bounds);
   text_layer_set_text(current_text_layer, "12mph SW\n26mph gusts\n1004mb");
   text_layer_set_background_color(current_text_layer, GColorClear);
-  text_layer_set_font(current_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18));
+  text_layer_set_font(current_text_layer, fonts_get_system_font(layout.text_font_key));
 
   next_time_layer = text_layer_create(layout.next_time_bounds);
   text_layer_set_text(next_time_layer, "1PM");
   text_layer_set_background_color(next_time_layer, GColorClear);
-  text_layer_set_font(next_time_layer, fonts_get_system_font(FONT_KEY_LECO_20_BOLD_NUMBERS));
+  text_layer_set_font(next_time_layer, fonts_get_system_font(layout.time_font_key));
   VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Time layers initialized");
   // Register main layers for animation system (only if animations enabled)
   if(animations_enabled()) {
