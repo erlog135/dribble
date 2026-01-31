@@ -26,7 +26,5 @@ void deinit_wind_speed_images(GDrawCommandImage** wind_speed_images);
 // Experiential image functions
 GDrawCommandImage** init_25px_experiential_images();
 GDrawCommandImage** init_50px_experiential_images();
-GDrawCommandImage** init_emoji_images();
 void deinit_25px_experiential_images(GDrawCommandImage** experiential_images_25px);
 void deinit_50px_experiential_images(GDrawCommandImage** experiential_images_50px);
-void deinit_emoji_images(GDrawCommandImage** emoji_images);

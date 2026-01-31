@@ -16,7 +16,6 @@ static GDrawCommandImage** next_image_ref;
 // Experiential configuration
 static GDrawCommandImage** experiential_images_25px;
 static GDrawCommandImage** experiential_images_50px;
-static GDrawCommandImage** emoji_images;
 
 static GDrawCommandImage* emoji_image;
 
@@ -100,11 +99,37 @@ Layer* init_experiential_layers(Layer* window_layer, GDrawCommandImage** prev_im
     // TODO: Initialize experiential images
     experiential_images_25px = init_25px_experiential_images();
     experiential_images_50px = init_50px_experiential_images();
-    emoji_images = init_emoji_images();
-
-    emoji_image = emoji_images[rand() % 4];
+    
+    // Randomly choose one emoji to load
+    const uint32_t emoji_ids[] = {
+        RESOURCE_ID_EMOJI_KISSING,
+        RESOURCE_ID_EMOJI_SMILE,
+        RESOURCE_ID_EMOJI_TEETH,
+        RESOURCE_ID_EMOJI_WINKY_TONGUE
+    };
+    uint32_t chosen_emoji_id = emoji_ids[rand() % 4];
+    emoji_image = gdraw_command_image_create_with_resource(chosen_emoji_id);
 
     return experiential_layer;
+}
+
+void deinit_experiential_layers(void) {
+    if (experiential_images_25px) {
+        deinit_25px_experiential_images(experiential_images_25px);
+        experiential_images_25px = NULL;
+    }
+    if (experiential_images_50px) {
+        deinit_50px_experiential_images(experiential_images_50px);
+        experiential_images_50px = NULL;
+    }
+    if (emoji_image) {
+        gdraw_command_image_destroy(emoji_image);
+        emoji_image = NULL;
+    }
+    if (experiential_layer) {
+        layer_destroy(experiential_layer);
+        experiential_layer = NULL;
+    }
 }
 
 void draw_experiential(Layer* layer, GContext* ctx) {

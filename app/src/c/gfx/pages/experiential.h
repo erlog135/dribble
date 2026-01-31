@@ -5,6 +5,7 @@
 #define NUM_EXPERIENTIAL_IMAGES 7 //this is in resources too :/
 
 Layer* init_experiential_layers(Layer* window_layer, GDrawCommandImage** prev_image, GDrawCommandImage** current_image, GDrawCommandImage** next_image);
+void deinit_experiential_layers(void);
 void draw_experiential(Layer* layer, GContext* ctx);
 
 /**

@@ -16,7 +16,7 @@
 
 // Conditional logging for viewer module
 // Uncomment the line below to enable viewer debug logging
-#define VIEWER_LOGGING
+// #define VIEWER_LOGGING
 
 #ifdef VIEWER_LOGGING
   #define VIEWER_LOG(level, fmt, ...) APP_LOG(level, fmt, ##__VA_ARGS__)
@@ -415,12 +415,15 @@ static void init_layers(Layer* window_layer) {
   layer_add_child(window_layer, text_layer_get_layer(next_time_layer));
   VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Time layers added to window layer");
 
+  VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Initializing conditions layers");
   Layer* conditions_layer = init_conditions_layers(window_layer, &prev_image, &current_image, &next_image);
   layer_add_child(window_layer, conditions_layer);
   
+  VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Initializing airflow layers");
   Layer* air_layer = init_airflow_layers(window_layer, &prev_image, &current_image, &next_image);
   layer_add_child(window_layer, air_layer);
   
+  VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Initializing experiential layers");
   Layer* exp_layer = init_experiential_layers(window_layer, &prev_image, &current_image, &next_image);
   layer_add_child(window_layer, exp_layer);
   VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Image layers initialized");
@@ -619,6 +622,7 @@ static void prv_window_unload(Window *window) {
   }
 
   deinit_conditions_layers();
+  deinit_experiential_layers();
 }
 
 // Public API implementation

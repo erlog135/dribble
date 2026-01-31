@@ -162,6 +162,7 @@ void dcim_8angle_from_src(GDrawCommandImage** target_image, uint8_t direction,
     // Free existing target image if it exists
     if (*target_image) {
         gdraw_command_image_destroy(*target_image);
+        *target_image = NULL;
     }
 
     // For diagonal directions (1, 3, 5, 7), use the angled source image

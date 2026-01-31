@@ -21,6 +21,7 @@ int32_t anemometer_speed = ANEMOMETER_SPEED_MIN;
 static Layer* airflow_layer;
 static int32_t current_angle = 0;
 static bool is_active = false;
+static bool was_active = false;  // Track if we were active before, to know if we own the images
 static uint8_t selected_hour = 0;
 
 // Image references passed from main.c
@@ -46,6 +47,7 @@ static void timeout_callback();
 static void reset_timeout();
 
 void set_airflow_view(int hour) {
+    was_active = is_active;  // Remember previous state
     is_active = (hour >= 0);
     selected_hour = hour;
 
@@ -60,6 +62,10 @@ void set_airflow_view(int hour) {
             uint8_t dir = (forecast_hours[hour-1].wind_direction + 2) % 8;
             dcim_8angle_from_src(prev_image_ref, dir, wind_speed_src_images[prev_wind_speed_icon], wind_speed_src_images[prev_wind_speed_icon+1]);
         } else {
+            // Destroy existing image before setting to NULL
+            if (*prev_image_ref) {
+                gdraw_command_image_destroy(*prev_image_ref);
+            }
             *prev_image_ref = NULL;
         }
 
@@ -73,10 +79,27 @@ void set_airflow_view(int hour) {
             uint8_t dir = (forecast_hours[hour+1].wind_direction + 2) % 8;
             dcim_8angle_from_src(next_image_ref, dir, wind_speed_src_images[next_wind_speed_icon], wind_speed_src_images[next_wind_speed_icon+1]);
         } else {
+            // Destroy existing image before setting to NULL
+            if (*next_image_ref) {
+                gdraw_command_image_destroy(*next_image_ref);
+            }
             *next_image_ref = NULL;
         }
     } else {
         // Clear all image references when inactive
+        // Only destroy clones if WE were previously active (meaning we own these clones)
+        // If we weren't active, these pointers belong to another page and shouldn't be touched
+        if (was_active) {
+            if (*prev_image_ref) {
+                gdraw_command_image_destroy(*prev_image_ref);
+            }
+            if (*current_image_ref) {
+                gdraw_command_image_destroy(*current_image_ref);
+            }
+            if (*next_image_ref) {
+                gdraw_command_image_destroy(*next_image_ref);
+            }
+        }
         *prev_image_ref = NULL;
         *current_image_ref = NULL;
         *next_image_ref = NULL;
@@ -103,6 +126,10 @@ void set_airflow_view(int hour) {
 }
 
 void update_icons() {
+
+    if(!is_active) {
+        return;
+    }
 
     // Calculate proportional anemometer speed, but clamp to min/max
     int wind_speed = forecast_hours[selected_hour].wind_speed;

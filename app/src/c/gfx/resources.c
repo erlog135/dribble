@@ -4,7 +4,6 @@
 
 // Number of experiential resources
 #define NUM_EXPERIENTIAL_RESOURCES 7
-#define NUM_EMOJI_RESOURCES 4
 
 // Color functions for conditions, airflow, and experiential states
 
@@ -113,13 +112,6 @@ const uint32_t EXPERIENTIAL_RESOURCE_IDS_50PX[] = {
     RESOURCE_ID_FOGGY_50PX            // 6: Foggy
 };
 
-// Array mapping emoji resource IDs
-const uint32_t EMOJI_RESOURCE_IDS[] = {
-    RESOURCE_ID_EMOJI_KISSING,        // 0: Kissing
-    RESOURCE_ID_EMOJI_SMILE,          // 1: Smile
-    RESOURCE_ID_EMOJI_TEETH,          // 2: Teeth
-    RESOURCE_ID_EMOJI_WINKY_TONGUE    // 3: Winky Tongue
-};
 
 static bool use_sleepy_moon = false;
 static bool moon_decided = false;
@@ -137,12 +129,30 @@ GDrawCommandImage** init_25px_condition_images() {
     
     GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * NUM_WEATHER_CONDITIONS);
     if (!images) return NULL;
+    
+    // Initialize all entries to NULL
     for (int i = 0; i < NUM_WEATHER_CONDITIONS; ++i) {
-        uint32_t resource_id = CONDITION_RESOURCE_IDS_25PX[i];
-        if (i == 11 && use_sleepy_moon) {  // CLEAR NIGHT condition
-            resource_id = RESOURCE_ID_SLEEPY_MOON_25PX;
+        images[i] = NULL;
+    }
+    
+    // Scan forecast_hours to find which condition icons are actually used
+    bool used[NUM_WEATHER_CONDITIONS] = {false};
+    for (int hour = 0; hour < 12; ++hour) {
+        uint8_t icon = forecast_hours[hour].conditions_icon;
+        if (icon < NUM_WEATHER_CONDITIONS) {
+            used[icon] = true;
         }
-        images[i] = gdraw_command_image_create_with_resource(resource_id);
+    }
+    
+    // Only load images for IDs that are actually used
+    for (int i = 0; i < NUM_WEATHER_CONDITIONS; ++i) {
+        if (used[i]) {
+            uint32_t resource_id = CONDITION_RESOURCE_IDS_25PX[i];
+            if (i == 11 && use_sleepy_moon) {  // CLEAR NIGHT condition
+                resource_id = RESOURCE_ID_SLEEPY_MOON_25PX;
+            }
+            images[i] = gdraw_command_image_create_with_resource(resource_id);
+        }
     }
     return images;
 }
@@ -152,12 +162,30 @@ GDrawCommandImage** init_50px_condition_images() {
     
     GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * NUM_WEATHER_CONDITIONS);
     if (!images) return NULL;
+    
+    // Initialize all entries to NULL
     for (int i = 0; i < NUM_WEATHER_CONDITIONS; ++i) {
-        uint32_t resource_id = CONDITION_RESOURCE_IDS_50PX[i];
-        if (i == 11 && use_sleepy_moon) {  // CLEAR NIGHT condition
-            resource_id = RESOURCE_ID_SLEEPY_MOON_50PX;
+        images[i] = NULL;
+    }
+    
+    // Scan forecast_hours to find which condition icons are actually used
+    bool used[NUM_WEATHER_CONDITIONS] = {false};
+    for (int hour = 0; hour < 12; ++hour) {
+        uint8_t icon = forecast_hours[hour].conditions_icon;
+        if (icon < NUM_WEATHER_CONDITIONS) {
+            used[icon] = true;
         }
-        images[i] = gdraw_command_image_create_with_resource(resource_id);
+    }
+    
+    // Only load images for IDs that are actually used
+    for (int i = 0; i < NUM_WEATHER_CONDITIONS; ++i) {
+        if (used[i]) {
+            uint32_t resource_id = CONDITION_RESOURCE_IDS_50PX[i];
+            if (i == 11 && use_sleepy_moon) {  // CLEAR NIGHT condition
+                resource_id = RESOURCE_ID_SLEEPY_MOON_50PX;
+            }
+            images[i] = gdraw_command_image_create_with_resource(resource_id);
+        }
     }
     return images;
 }
@@ -238,8 +266,27 @@ void deinit_wind_speed_images(GDrawCommandImage** wind_speed_images) {
 GDrawCommandImage** init_25px_experiential_images() {
     GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * NUM_EXPERIENTIAL_RESOURCES);
     if (!images) return NULL;
+    
+    // Initialize all entries to NULL
     for (int i = 0; i < NUM_EXPERIENTIAL_RESOURCES; ++i) {
-        images[i] = gdraw_command_image_create_with_resource(EXPERIENTIAL_RESOURCE_IDS_25PX[i]);
+        images[i] = NULL;
+    }
+    
+    // Scan forecast_hours to find which experiential icons are actually used
+    // Note: experiential_icon values are 1-7 (0 means none), but arrays are 0-indexed
+    bool used[NUM_EXPERIENTIAL_RESOURCES] = {false};
+    for (int hour = 0; hour < 12; ++hour) {
+        uint8_t icon = forecast_hours[hour].experiential_icon;
+        if (icon > 0 && icon <= NUM_EXPERIENTIAL_RESOURCES) {
+            used[icon - 1] = true;  // Convert 1-based icon to 0-based array index
+        }
+    }
+    
+    // Only load images for IDs that are actually used
+    for (int i = 0; i < NUM_EXPERIENTIAL_RESOURCES; ++i) {
+        if (used[i]) {
+            images[i] = gdraw_command_image_create_with_resource(EXPERIENTIAL_RESOURCE_IDS_25PX[i]);
+        }
     }
     return images;
 }
@@ -247,17 +294,27 @@ GDrawCommandImage** init_25px_experiential_images() {
 GDrawCommandImage** init_50px_experiential_images() {
     GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * NUM_EXPERIENTIAL_RESOURCES);
     if (!images) return NULL;
+    
+    // Initialize all entries to NULL
     for (int i = 0; i < NUM_EXPERIENTIAL_RESOURCES; ++i) {
-        images[i] = gdraw_command_image_create_with_resource(EXPERIENTIAL_RESOURCE_IDS_50PX[i]);
+        images[i] = NULL;
     }
-    return images;
-}
-
-GDrawCommandImage** init_emoji_images() {
-    GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * NUM_EMOJI_RESOURCES);
-    if (!images) return NULL;
-    for (int i = 0; i < NUM_EMOJI_RESOURCES; ++i) {
-        images[i] = gdraw_command_image_create_with_resource(EMOJI_RESOURCE_IDS[i]);
+    
+    // Scan forecast_hours to find which experiential icons are actually used
+    // Note: experiential_icon values are 1-7 (0 means none), but arrays are 0-indexed
+    bool used[NUM_EXPERIENTIAL_RESOURCES] = {false};
+    for (int hour = 0; hour < 12; ++hour) {
+        uint8_t icon = forecast_hours[hour].experiential_icon;
+        if (icon > 0 && icon <= NUM_EXPERIENTIAL_RESOURCES) {
+            used[icon - 1] = true;  // Convert 1-based icon to 0-based array index
+        }
+    }
+    
+    // Only load images for IDs that are actually used
+    for (int i = 0; i < NUM_EXPERIENTIAL_RESOURCES; ++i) {
+        if (used[i]) {
+            images[i] = gdraw_command_image_create_with_resource(EXPERIENTIAL_RESOURCE_IDS_50PX[i]);
+        }
     }
     return images;
 }
@@ -280,14 +337,4 @@ void deinit_50px_experiential_images(GDrawCommandImage** experiential_images_50p
         }
     }
     free(experiential_images_50px);
-}
-
-void deinit_emoji_images(GDrawCommandImage** emoji_images) {
-    if (!emoji_images) return;
-    for (int i = 0; i < NUM_EMOJI_RESOURCES; ++i) {
-        if (emoji_images[i]) {
-            gdraw_command_image_destroy(emoji_images[i]);
-        }
-    }
-    free(emoji_images);
 }
