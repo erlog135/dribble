@@ -231,12 +231,15 @@ void text_animation_start(AnimationDirection direction, uint8_t target_hour, con
     }
     
     // Calculate proper off-screen positions based on screen dimensions
-    GRect off_screen_top = GRect(layout.current_time_bounds.origin.x, 
+    // For round screens, use screen_width/2 for X origin; otherwise use current bounds X
+    int16_t off_screen_x = layout.is_round ? layout.screen_width / 2 : layout.current_time_bounds.origin.x;
+    
+    GRect off_screen_top = GRect(off_screen_x, 
                                 -layout.current_time_bounds.size.h - 10,  // Well above screen
                                 layout.current_time_bounds.size.w, 
                                 layout.current_time_bounds.size.h);
     
-    GRect off_screen_bottom = GRect(layout.current_time_bounds.origin.x, 
+    GRect off_screen_bottom = GRect(off_screen_x, 
                                    layout.screen_height + 10,  // Well below screen
                                    layout.current_time_bounds.size.w, 
                                    layout.current_time_bounds.size.h);

@@ -86,19 +86,16 @@ static void layout_init(int16_t screen_width, int16_t screen_height, bool is_rou
     layout.is_pixel_dense = is_pixel_dense;
 
     // Set padding values locally
-    layout.padding_top = 4;
-    layout.padding_bottom = 4;
-
     if(is_round) {
-        layout.padding_left = 12;
+        layout.padding_left = 18;
+        layout.padding_right = 18;
+        layout.padding_top = 16;
+        layout.padding_bottom = 16;
     } else {
         layout.padding_left = 6;
-    }
-
-    if (is_round) {
-        layout.padding_right = 12;
-    } else {
         layout.padding_right = 6;
+        layout.padding_top = 4;
+        layout.padding_bottom = 4;
     }
     
     // Set text dimensions
@@ -124,11 +121,13 @@ static void layout_init(int16_t screen_width, int16_t screen_height, bool is_rou
     
     // Calculate text positions (left padding affects x values for all text)
     if (layout.is_round) {
-        // For round screens, prev and next time are positioned off-screen vertically
-        layout.prev_time_pos = GPoint(layout.padding_left, -layout.text_height);
+        // For round screens, prev and next use vertical padding for placement
+        // Use ~1/4 screen width for side padding due to curved screen edges
+        int16_t round_padding = layout.screen_width / 4;
+        layout.prev_time_pos = GPoint(round_padding, layout.padding_top);
         layout.current_time_pos = GPoint(layout.padding_left, layout.screen_height/2 - layout.text_height*2);
         layout.current_text_pos = GPoint(layout.padding_left, layout.screen_height/2 - layout.text_height);
-        layout.next_time_pos = GPoint(layout.padding_left, layout.screen_height);
+        layout.next_time_pos = GPoint(round_padding, layout.screen_height - layout.text_height - layout.padding_bottom);
     } else {
         // For rectangular screens, use original positioning with padding
         layout.prev_time_pos = GPoint(layout.padding_left, layout.padding_top);
@@ -139,11 +138,14 @@ static void layout_init(int16_t screen_width, int16_t screen_height, bool is_rou
     
     // Calculate icon positions (right padding affects x values for all icons)
     if (layout.is_round) {
-        // For round screens, prev and next icons go to top and bottom center
-        layout.prev_icon_pos = GPoint((layout.screen_width - layout.icon_small) / 2, layout.padding_top);
+        // For round screens, prev and next use vertical padding for placement
+        // Use ~1/4 screen width for side padding due to curved screen edges
+        int16_t round_icon_padding = layout.screen_width / 4;
+        layout.prev_icon_pos = GPoint(layout.screen_width - layout.icon_small - round_icon_padding, 
+                                      layout.padding_top);
         layout.current_icon_pos = GPoint(layout.screen_width - layout.icon_large - layout.padding_right, 
                                          layout.screen_height/2 - layout.icon_large/2);
-        layout.next_icon_pos = GPoint((layout.screen_width - layout.icon_small) / 2, 
+        layout.next_icon_pos = GPoint(layout.screen_width - layout.icon_small - round_icon_padding, 
                                       layout.screen_height - layout.icon_small - layout.padding_bottom);
     } else {
         // For rectangular screens, use original positioning with right padding
@@ -176,14 +178,18 @@ static void layout_init(int16_t screen_width, int16_t screen_height, bool is_rou
     
     // Calculate text bounds
     if (layout.is_round) {
-        // For round screens, prev and next time bounds are off-screen vertically
-        layout.prev_time_bounds = GRect(layout.padding_left, -layout.text_height, layout.text_width, layout.text_height);
+        // For round screens, prev and next use vertical padding for placement
+        // Use ~1/4 screen width for side padding due to curved screen edges
+        int16_t round_padding = layout.screen_width / 4;
+        int16_t round_text_width = layout.screen_width - (round_padding * 2);
+        layout.prev_time_bounds = GRect(round_padding, layout.padding_top, 
+                                       round_text_width, layout.text_height);
         layout.current_time_bounds = GRect(layout.padding_left, layout.screen_height/2 - layout.text_height*2, 
                                            layout.text_width, layout.text_height);
         layout.current_text_bounds = GRect(layout.padding_left, layout.screen_height/2 - layout.text_height, 
                                            layout.text_width, layout.text_height*3);
-        layout.next_time_bounds = GRect(layout.padding_left, layout.screen_height, 
-                                        layout.text_width, layout.text_height);
+        layout.next_time_bounds = GRect(round_padding, layout.screen_height - layout.text_height - layout.padding_bottom, 
+                                        round_text_width, layout.text_height);
     } else {
         // For rectangular screens, use original positioning with padding
         layout.prev_time_bounds = GRect(layout.padding_left, layout.padding_top, layout.text_width, layout.text_height);
@@ -197,15 +203,18 @@ static void layout_init(int16_t screen_width, int16_t screen_height, bool is_rou
     
     // Calculate icon bounds
     if (layout.is_round) {
-        // For round screens, prev and next icons are centered horizontally
-        layout.prev_icon_bounds = GRect((layout.screen_width - layout.icon_small) / 2, layout.padding_top, 
-                                        layout.icon_small, layout.icon_small);
+        // For round screens, prev and next use vertical padding for placement
+        // Use ~1/4 screen width for side padding due to curved screen edges
+        int16_t round_icon_padding = layout.screen_width / 4;
+        layout.prev_icon_bounds = GRect(layout.screen_width - layout.icon_small - round_icon_padding, 
+                                       layout.padding_top,
+                                       layout.icon_small, layout.icon_small);
         layout.current_icon_bounds = GRect(layout.screen_width - layout.icon_large - layout.padding_right, 
                                            layout.screen_height/2 - layout.icon_large/2, 
                                            layout.icon_large, layout.icon_large);
-        layout.next_icon_bounds = GRect((layout.screen_width - layout.icon_small) / 2, 
-                                        layout.screen_height - layout.icon_small - layout.padding_bottom, 
-                                        layout.icon_small, layout.icon_small);
+        layout.next_icon_bounds = GRect(layout.screen_width - layout.icon_small - round_icon_padding, 
+                                       layout.screen_height - layout.icon_small - layout.padding_bottom,
+                                       layout.icon_small, layout.icon_small);
     } else {
         // For rectangular screens, use original positioning with right padding
         layout.prev_icon_bounds = GRect(layout.screen_width - layout.icon_small - layout.padding_right, layout.padding_top, 
