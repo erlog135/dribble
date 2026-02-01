@@ -88,7 +88,7 @@ static void handle_data_response(DictionaryIterator *iter) {
         unpack_all_hours((uint8_t*)hour_data_tuple->value->data, forecast_hours);
         received_hours = 12;
         
-        splash_set_status_text("Loading precipitation...");
+        splash_set_status_text("Loading...");
         UTIL_LOG(APP_LOG_LEVEL_DEBUG, "All hourly data received (120 bytes), waiting for precipitation data");
     }
 

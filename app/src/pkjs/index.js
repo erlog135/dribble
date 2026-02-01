@@ -2,6 +2,7 @@ var keys = require('message_keys');
 var msgproc = require('./msgproc');
 var weatherkit = require('./weatherkit');
 var events = require('./events');
+var timeline = require('./timeline');
 
 var Clay = require('@rebble/clay');
 var clayConfig = require('./config');
@@ -275,6 +276,28 @@ function requestWeatherData(location, dataSets) {
                 precipitation = msgproc.packPrecipitation(0, new Array(24).fill(0));
             }
 
+            // Precipitation pin: use first summary that isn't clear
+            if ("forecastNextHour" in response) {
+                let summaries = response.forecastNextHour.summary;
+                if (summaries && summaries.length > 0) {
+                    let firstPrecip = summaries.find(function (s) { return s.condition && s.condition !== "clear"; });
+                    if (firstPrecip) {
+                        let startTime = new Date(firstPrecip.startTime);
+                        let endTime = firstPrecip.endTime
+                            ? new Date(firstPrecip.endTime)
+                            : new Date(response.forecastNextHour.forecastEnd);
+                        let averageIntensity = firstPrecip.precipitationIntensity || 0;
+                        let precipType = firstPrecip.condition.charAt(0).toUpperCase() + firstPrecip.condition.slice(1);
+                        let pin = events.createNextHourPrecipitationPin(startTime, endTime, precipType, averageIntensity);
+                        if (pin) {
+                            timeline.insertUserPin(pin, function (responseText) {
+                                debugLog("Precipitation pin pushed: " + responseText);
+                            });
+                        }
+                    }
+                }
+            }
+
             debugLog("Forecast hours assembled");
             //debugLog("Forecast hours to send: " + JSON.stringify(forecastHours));
 
@@ -307,7 +330,7 @@ function requestWeatherData(location, dataSets) {
 
 function requestWeatherAvailability(location) {
     debugLog("Requesting weather availability");
-    //var location = "41.1370/-76.6769";
+    //var location = "35.602/-77.345";
     var url = availabilityURL + location;
     var xhr = new XMLHttpRequest();
 

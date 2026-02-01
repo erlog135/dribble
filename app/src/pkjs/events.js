@@ -7,7 +7,6 @@
  */
 
 var timeline = require('./timeline');
-var precipitationTemplates = require('./templates/precipitation.json');
 
 // Debug configuration
 var debug = false;
@@ -65,13 +64,34 @@ function pushTestPin() {
  * @param {Date} startTime - Start time of the precipitation event
  * @param {Date} endTime - End time of the precipitation event
  * @param {string} precipitationType - Type of precipitation (e.g., "Snow", "Rain", "Sleet")
- * @param {number} intensity - Precipitation intensity in mm/hr
+ * @param {number} averageIntensityMmHr - Average precipitation intensity in mm/hr
  */
-function createNextHourPrecipitationPin(startTime, endTime, precipitationType, intensity) {
+function createNextHourPrecipitationPin(startTime, endTime, precipitationType, averageIntensityMmHr) {
 
-  if (intensity < 0.1) {
+  if (averageIntensityMmHr < 0.1) {
     return null;
   }
+
+  var intensityName = "";
+
+  if (precipitationType === "Rain") {
+    if (averageIntensityMmHr >= 2.5 && averageIntensityMmHr <= 7.6) {
+      intensityName = "Moderate";
+    } else if (averageIntensityMmHr > 7.6) {
+      intensityName = "Heavy";
+    } else {
+      intensityName = "Light";
+    }
+  } else if (precipitationType === "Snow" || precipitationType === "Sleet") {
+    if (averageIntensityMmHr >= 1.0 && averageIntensityMmHr <= 2.5) {
+      intensityName = "Moderate";
+    } else if (averageIntensityMmHr > 2.5) {
+      intensityName = "Heavy";
+    } else {
+      intensityName = "Light";
+    }
+  }
+
 
   // Calculate duration in minutes
   var durationMs = endTime.getTime() - startTime.getTime();
@@ -82,69 +102,65 @@ function createNextHourPrecipitationPin(startTime, endTime, precipitationType, i
     Math.floor(durationMinutes / 60) + 'h ' + (durationMinutes % 60) + 'm' : 
     durationMinutes + 'm';
   
-  // Calculate expected precipitation amount
+  // Calculate total amount from average intensity (mm/hr * hours)
   var durationHours = durationMinutes / 60;
-  var expectedAmount = (intensity * durationHours).toFixed(1);
-  
-  // Determine intensity category based on thresholds
-  var intensityCategory = "light";
-  if (intensity >= 7.5) {
-    intensityCategory = "heavy";
-  } else if (intensity >= 2.5) {
-    intensityCategory = "moderate";
-  }
-  
-  // Map precipitation type to template key
-  var templateKey = "generic"; // default
-  var typeLower = precipitationType.toLowerCase();
-  if (typeLower.includes("rain")) {
-    templateKey = "rain";
-  } else if (typeLower.includes("snow")) {
-    templateKey = "snow";
-  } else if (typeLower.includes("thunder")) {
-    templateKey = "thunder";
-  } else if (typeLower.includes("hail")) {
-    templateKey = "hail";
-  }
-  
-  // Get templates for this type and intensity
-  var templates = precipitationTemplates[templateKey][intensityCategory].templates;
-  
-  // Select a random template
-  var randomIndex = Math.floor(Math.random() * templates.length);
-  var selectedTemplate = templates[randomIndex];
-  
-  // Replace placeholders in template
-  var bodyText = selectedTemplate
-    .replace(/<amt>/g, expectedAmount + " mm")
-    .replace(/<dur>/g, durationText);
-  
-  // Determine icon based on precipitation type
-  var iconName = "RAINDROP"; // default
-  if (typeLower.includes("rain")) {
-    iconName = "RAINDROP";
-  } else if (typeLower.includes("snow")) {
-    iconName = "SNOWFLAKE";
+  var amountMm = averageIntensityMmHr * durationHours;
+
+  // Get precipitation unit from clay settings (default: in, per config.js)
+  var precipUnit = "in";
+  if (typeof localStorage !== "undefined" && localStorage.getItem("clay-settings")) {
+    var settings = JSON.parse(localStorage.getItem("clay-settings"));
+    precipUnit = settings.CFG_PRECIPITATION_UNITS || "in";
   }
 
-  // Format date for pin ID (mm-dd)
-  var month = (startTime.getMonth() + 1).toString().padStart(2, '0');
-  var day = startTime.getDate().toString().padStart(2, '0');
-  var dateString = month + '-' + day;
+  //if snow or sleet, multiply expected amount by 10 to get a more accurate accumulated amount
+  if(precipitationType === "Snow" || precipitationType === "Sleet") {
+    amountMm = (amountMm * 10);
+  }
+
+  var expectedAmount;
+  if (precipUnit === "in") {
+    expectedAmount = (amountMm * 0.0393701).toFixed(2) + "in";
+  } else {
+    expectedAmount = amountMm.toFixed(1) + "mm";
+  }
+
+
+  // Create generic body text
+  var bodyText = "Expect about " + expectedAmount + " over " + durationText + ".";
+  
+  // Determine icon based on precipitation type and intensity
+  var iconName = "LIGHT_RAIN"; // default
+  if (precipitationType === "Rain") {
+    if(averageIntensityMmHr > 7.6) {
+      iconName = "HEAVY_RAIN";
+    } else {
+      iconName = "LIGHT_RAIN";
+    }
+  } else if (precipitationType === "Snow" || precipitationType === "Sleet") {
+    if(averageIntensityMmHr > 2.5) {
+      iconName = "HEAVY_SNOW";
+    } else {
+      iconName = "LIGHT_SNOW";
+    }
+  }
+
+
+  
 
   // Create the pin
   var pin = {
-    "id": dateString + "-next-hour-precipitation",
+    "id": "next_hour_precipitation",
     "time": startTime.toISOString(),
     "duration": durationMinutes,
     "layout": {
       "type": "calendarPin",
       "backgroundColor": "#00AAFF",
-      "title": precipitationType,
+      "title": intensityName + (intensityName !== "" ? " " : "") + precipitationType,
       "locationName": "for " + durationText,
       "body": bodyText,
-      "tinyIcon": "app://images/" + iconName,
-      "largeIcon": "app://images/" + iconName,
+      "tinyIcon": "system://images/" + iconName,
+      "largeIcon": "system://images/" + iconName,
       "lastUpdated": new Date().toISOString()
     }
   };
@@ -154,62 +170,6 @@ function createNextHourPrecipitationPin(startTime, endTime, precipitationType, i
   return pin;
 }
 
-/**
- * Create a timeline pin for precipitation chance
- * @param {Date} startTime - Start time of the precipitation chance period
- * @param {string} precipitationType - Type of precipitation (e.g., "Snow", "Rain", "Sleet")
- * @param {number} chance - Precipitation chance as a percentage (0-100)
- */
-function createPrecipitationChancePin(startTime, precipitationType, chance) {
-
-  if (chance <= 0) {
-    return null;
-  }
-
-  // Format date for pin ID (mm-dd)
-  var month = (startTime.getMonth() + 1).toString().padStart(2, '0');
-  var day = startTime.getDate().toString().padStart(2, '0');
-  var dateString = month + '-' + day;
-
-  // Determine icon based on precipitation type
-  var iconName = "RAINDROP"; // default
-  var typeLower = precipitationType.toLowerCase();
-  if (typeLower.includes("rain")) {
-    iconName = "RAINDROP";
-  } else if (typeLower.includes("snow")) {
-    iconName = "SNOWFLAKE";
-  }
-
-  // Create the pin
-  var pin = {
-    "id": dateString + "-chance-precipitation",
-    "time": startTime.toISOString(),
-    "layout": {
-      "type": "genericPin",
-      "backgroundColor": "#00AAFF",
-      "title": precipitationType + " Chance",
-      "body": "There is a " + chance + "% chance of " + precipitationType.toLowerCase() + " starting at this time.",
-      "tinyIcon": "app://images/" + iconName,
-      "lastUpdated": new Date().toISOString()
-    }
-  };
-
-  debugLog('Creating precipitation chance pin: ' + JSON.stringify(pin));
-
-  return pin;
-}
-
-
-
-function appGlanceSuccess(appGlanceSlices, appGlanceReloadResult) {
-  debugLog('SUCCESS!');
-};
-
-function appGlanceFailure(appGlanceSlices, appGlanceReloadResult) {
-  debugLog('FAILURE!');
-};
-
 
 module.exports.pushTestPin = pushTestPin;
 module.exports.createNextHourPrecipitationPin = createNextHourPrecipitationPin;
-module.exports.createPrecipitationChancePin = createPrecipitationChancePin;

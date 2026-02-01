@@ -4,13 +4,11 @@
 #include "../pages/airflow.h"
 #include "../pages/conditions.h"
 #include "../pages/experiential.h"
-#ifndef PBL_PLATFORM_APLITE
 #include "../animation/animation.h"
 #include "../animation/text_animation.h"
 #include "../animation/image_animation.h"
 #include "../animation/transition.h"
 #include "../animation/background_animation.h"
-#endif
 #include "../../utils/weather.h"
 #include "../../utils/prefs.h"
 

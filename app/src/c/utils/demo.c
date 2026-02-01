@@ -45,6 +45,11 @@ void demo_populate_forecast_hours(void) {
         forecast_hours[i].wind_speed = preset->wind_speed;
         forecast_hours[i].wind_direction = preset->wind_dir / 2;  // Convert to 0-7 range
         
+        // For demo mode, assume default wind vane direction (wind heading, not origin)
+        // The incoming wind direction represents where wind is coming FROM (meteorological convention)
+        // Since default is wind heading (where wind is blowing TO), rotate 180 degrees (add 4)
+        forecast_hours[i].wind_direction = (forecast_hours[i].wind_direction + 4) % 8;
+        
         // Calculate wind speed level and resource ID based on wind speed
         uint8_t wind_speed_level;
         if (preset->wind_speed <= 16) {
