@@ -160,6 +160,7 @@ module.exports = [
         },
         {
           "type": "toggle",
+          "capabilities": ["NOT_PLATFORM_APLITE"],
           "messageKey": "CFG_ANIMATE",
           "label": "Enable animations",
           "defaultValue": true
