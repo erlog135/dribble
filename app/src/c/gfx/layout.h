@@ -87,10 +87,17 @@ static void layout_init(int16_t screen_width, int16_t screen_height, bool is_rou
 
     // Set padding values locally
     if(is_round) {
-        layout.padding_left = 18;
-        layout.padding_right = 18;
-        layout.padding_top = 16;
-        layout.padding_bottom = 16;
+        if(is_pixel_dense) {
+            layout.padding_left = 28;
+            layout.padding_right = 28;
+            layout.padding_top = 24;
+            layout.padding_bottom = 24;
+        } else {
+            layout.padding_left = 18;
+            layout.padding_right = 18;
+            layout.padding_top = 16;
+            layout.padding_bottom = 16;
+        }
     } else {
         layout.padding_left = 6;
         layout.padding_right = 6;
@@ -127,13 +134,13 @@ static void layout_init(int16_t screen_width, int16_t screen_height, bool is_rou
         layout.prev_time_pos = GPoint(round_padding, layout.padding_top);
         layout.current_time_pos = GPoint(layout.padding_left, layout.screen_height/2 - layout.text_height*2);
         layout.current_text_pos = GPoint(layout.padding_left, layout.screen_height/2 - layout.text_height);
-        layout.next_time_pos = GPoint(round_padding, layout.screen_height - layout.text_height - layout.padding_bottom);
+        layout.next_time_pos = GPoint(round_padding, layout.screen_height - layout.text_height - layout.padding_bottom - 3);
     } else {
         // For rectangular screens, use original positioning with padding
         layout.prev_time_pos = GPoint(layout.padding_left, layout.padding_top);
         layout.current_time_pos = GPoint(layout.padding_left, layout.screen_height/2 - layout.text_height*2);
         layout.current_text_pos = GPoint(layout.padding_left, layout.screen_height/2 - layout.text_height);
-        layout.next_time_pos = GPoint(layout.padding_left, layout.screen_height - layout.text_height - layout.padding_bottom);
+        layout.next_time_pos = GPoint(layout.padding_left, layout.screen_height - layout.text_height - layout.padding_bottom - 3);
     }
     
     // Calculate icon positions (right padding affects x values for all icons)
