@@ -21,19 +21,19 @@ static void text_animation_complete_callback(void) {
     
     // Restore all layers to their proper layout positions and show them
     if (s_text_animation_context.main_time_layer) {
-        layer_set_frame(text_layer_get_layer(s_text_animation_context.main_time_layer), layout.current_time_bounds);
+        layer_set_frame(text_layer_get_layer(s_text_animation_context.main_time_layer), LAYOUT_CUR_TIME_BOUNDS);
         layer_set_hidden(text_layer_get_layer(s_text_animation_context.main_time_layer), false);
     }
     if (s_text_animation_context.main_text_layer) {
-        layer_set_frame(text_layer_get_layer(s_text_animation_context.main_text_layer), layout.current_text_bounds);
+        layer_set_frame(text_layer_get_layer(s_text_animation_context.main_text_layer), LAYOUT_CUR_TEXT_BOUNDS);
         layer_set_hidden(text_layer_get_layer(s_text_animation_context.main_text_layer), false);
     }
     if (s_text_animation_context.prev_time_layer) {
-        layer_set_frame(text_layer_get_layer(s_text_animation_context.prev_time_layer), layout.prev_time_bounds);
+        layer_set_frame(text_layer_get_layer(s_text_animation_context.prev_time_layer), LAYOUT_PREV_TIME_BOUNDS);
         layer_set_hidden(text_layer_get_layer(s_text_animation_context.prev_time_layer), false);
     }
     if (s_text_animation_context.next_time_layer) {
-        layer_set_frame(text_layer_get_layer(s_text_animation_context.next_time_layer), layout.next_time_bounds);
+        layer_set_frame(text_layer_get_layer(s_text_animation_context.next_time_layer), LAYOUT_NEXT_TIME_BOUNDS);
         layer_set_hidden(text_layer_get_layer(s_text_animation_context.next_time_layer), false);
     }
     
@@ -95,9 +95,9 @@ void text_animation_init(Layer* parent_layer) {
     image_animation_init(parent_layer);
     
     // Create temporary incoming time layer
-    s_text_animation_context.temp_incoming_time_layer = text_layer_create(layout.current_time_bounds);
+    s_text_animation_context.temp_incoming_time_layer = text_layer_create(LAYOUT_CUR_TIME_BOUNDS);
     text_layer_set_background_color(s_text_animation_context.temp_incoming_time_layer, GColorClear);
-    text_layer_set_font(s_text_animation_context.temp_incoming_time_layer, fonts_get_system_font(layout.time_font_key));
+    text_layer_set_font(s_text_animation_context.temp_incoming_time_layer, fonts_get_system_font(LAYOUT_TIME_FONT));
     layer_set_hidden(text_layer_get_layer(s_text_animation_context.temp_incoming_time_layer), true);
     
     // Add temp incoming time layer to animation layer
@@ -230,101 +230,106 @@ void text_animation_start(AnimationDirection direction, uint8_t target_hour, con
         layer_set_hidden(text_layer_get_layer(s_text_animation_context.temp_incoming_time_layer), false);
     }
     
-    // Calculate proper off-screen positions based on screen dimensions
+    // Snapshot layout bounds as locals (needed for pointer passing to property_animation_create_layer_frame)
+    GRect prev_time_bounds = LAYOUT_PREV_TIME_BOUNDS;
+    GRect cur_time_bounds  = LAYOUT_CUR_TIME_BOUNDS;
+    GRect cur_text_bounds  = LAYOUT_CUR_TEXT_BOUNDS;
+    GRect next_time_bounds = LAYOUT_NEXT_TIME_BOUNDS;
+
     // For round screens, use screen_width/2 for X origin; otherwise use current bounds X
-    int16_t off_screen_x = layout.is_round ? layout.screen_width / 2 : layout.current_time_bounds.origin.x;
-    
-    GRect off_screen_top = GRect(off_screen_x, 
-                                -layout.current_time_bounds.size.h - 10,  // Well above screen
-                                layout.current_time_bounds.size.w, 
-                                layout.current_time_bounds.size.h);
-    
-    GRect off_screen_bottom = GRect(off_screen_x, 
-                                   layout.screen_height + 10,  // Well below screen
-                                   layout.current_time_bounds.size.w, 
-                                   layout.current_time_bounds.size.h);
-    
+    int16_t off_screen_x = PBL_IF_ROUND_ELSE(LAYOUT_W / 2, cur_time_bounds.origin.x);
+
+    GRect off_screen_top = GRect(off_screen_x,
+                                -cur_time_bounds.size.h - 10,
+                                cur_time_bounds.size.w,
+                                cur_time_bounds.size.h);
+
+    GRect off_screen_bottom = GRect(off_screen_x,
+                                   LAYOUT_H + 10,
+                                   cur_time_bounds.size.w,
+                                   cur_time_bounds.size.h);
+
     // Text "hop" positions - move up or down and back to normal
-    GRect text_hop_up = GRect(layout.current_text_bounds.origin.x,
-                             layout.current_text_bounds.origin.y - 20,  // Hop up 20 pixels
-                             layout.current_text_bounds.size.w,
-                             layout.current_text_bounds.size.h);
-    
-    GRect text_hop_down = GRect(layout.current_text_bounds.origin.x,
-                               layout.current_text_bounds.origin.y + 20,  // Hop down 20 pixels
-                               layout.current_text_bounds.size.w,
-                               layout.current_text_bounds.size.h);
-    
-    ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Animation bounds - prev:(%d,%d), current:(%d,%d), next:(%d,%d)", 
-            layout.prev_time_bounds.origin.x, layout.prev_time_bounds.origin.y,
-            layout.current_time_bounds.origin.x, layout.current_time_bounds.origin.y,
-            layout.next_time_bounds.origin.x, layout.next_time_bounds.origin.y);
-    
+    GRect text_hop_up = GRect(cur_text_bounds.origin.x,
+                             cur_text_bounds.origin.y - 20,
+                             cur_text_bounds.size.w,
+                             cur_text_bounds.size.h);
+
+    GRect text_hop_down = GRect(cur_text_bounds.origin.x,
+                               cur_text_bounds.origin.y + 20,
+                               cur_text_bounds.size.w,
+                               cur_text_bounds.size.h);
+
+    ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Animation bounds - prev:(%d,%d), current:(%d,%d), next:(%d,%d)",
+            prev_time_bounds.origin.x, prev_time_bounds.origin.y,
+            cur_time_bounds.origin.x, cur_time_bounds.origin.y,
+            next_time_bounds.origin.x, next_time_bounds.origin.y);
+
     // Create individual animations based on direction
     if (direction == ANIMATION_DIRECTION_UP) {
         // UP: New time comes from top, moves to prev position (only if we have incoming time)
         if (show_incoming_time) {
             s_text_animation_context.incoming_time_animation = property_animation_create_layer_frame(
                 text_layer_get_layer(s_text_animation_context.temp_incoming_time_layer),
-                &off_screen_top, &layout.prev_time_bounds
+                &off_screen_top, &prev_time_bounds
             );
         }
-        
+
         // Prev time moves to current position
         s_text_animation_context.prev_time_animation = property_animation_create_layer_frame(
             text_layer_get_layer(s_text_animation_context.prev_time_layer),
-            &layout.prev_time_bounds, &layout.current_time_bounds
+            &prev_time_bounds, &cur_time_bounds
         );
-        
+
         // Current time moves to next position
         s_text_animation_context.current_time_animation = property_animation_create_layer_frame(
             text_layer_get_layer(s_text_animation_context.main_time_layer),
-            &layout.current_time_bounds, &layout.next_time_bounds
+            &cur_time_bounds, &next_time_bounds
         );
-        
+
         // Next time moves off screen bottom
         s_text_animation_context.next_time_animation = property_animation_create_layer_frame(
             text_layer_get_layer(s_text_animation_context.next_time_layer),
-            &layout.next_time_bounds, &off_screen_bottom
+            &next_time_bounds, &off_screen_bottom
         );
-        
+
         // Current text hops down (up button press makes text hop down)
         s_text_animation_context.current_text_animation = property_animation_create_layer_frame(
             text_layer_get_layer(s_text_animation_context.main_text_layer),
-            &text_hop_up, &layout.current_text_bounds
+            &text_hop_up, &cur_text_bounds
         );
-        
+
     } else {
         // DOWN: New time comes from bottom, moves to next position (only if we have incoming time)
         if (show_incoming_time) {
             s_text_animation_context.incoming_time_animation = property_animation_create_layer_frame(
                 text_layer_get_layer(s_text_animation_context.temp_incoming_time_layer),
-                &off_screen_bottom, &layout.next_time_bounds
+                &off_screen_bottom, &next_time_bounds
             );
         }
-        
+
         // Next time moves to current position
         s_text_animation_context.next_time_animation = property_animation_create_layer_frame(
             text_layer_get_layer(s_text_animation_context.next_time_layer),
-            &layout.next_time_bounds, &layout.current_time_bounds
+            &next_time_bounds, &cur_time_bounds
         );
-        
+
         // Current time moves to prev position
         s_text_animation_context.current_time_animation = property_animation_create_layer_frame(
             text_layer_get_layer(s_text_animation_context.main_time_layer),
-            &layout.current_time_bounds, &layout.prev_time_bounds
+            &cur_time_bounds, &prev_time_bounds
         );
-        
+
         // Prev time moves off screen top
         s_text_animation_context.prev_time_animation = property_animation_create_layer_frame(
             text_layer_get_layer(s_text_animation_context.prev_time_layer),
-            &layout.prev_time_bounds, &off_screen_top
+            &prev_time_bounds, &off_screen_top
         );
-        
+
         // Current text hops up (down button press makes text hop up)
         s_text_animation_context.current_text_animation = property_animation_create_layer_frame(
             text_layer_get_layer(s_text_animation_context.main_text_layer),
-            &text_hop_down, &layout.current_text_bounds
+            &text_hop_down, &cur_text_bounds
         );
     }
     

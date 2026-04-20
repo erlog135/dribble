@@ -177,9 +177,9 @@ static void draw_page_images(GContext* ctx) {
 #endif
     } else {
         // Use normal layout positions when animations disabled
-        prev_pos = layout.prev_icon_pos;
-        current_pos = layout.current_icon_pos;
-        next_pos = layout.next_icon_pos;
+        prev_pos = LAYOUT_PREV_ICON_POS;
+        current_pos = LAYOUT_CUR_ICON_POS;
+        next_pos = LAYOUT_NEXT_ICON_POS;
     }
     
     // Draw previous image if available
@@ -187,7 +187,7 @@ static void draw_page_images(GContext* ctx) {
         // Check if this is the small axis image (precipitation case on conditions page, hour 1)
         if (page_view == VIEW_PAGE_CONDITIONS && hour_view == 1 && precipitation.precipitation_type > 0) {
             // Use special small axis position instead of normal prev position
-            gdraw_command_image_draw(ctx, prev_image, layout.axis_small_pos);
+            gdraw_command_image_draw(ctx, prev_image, LAYOUT_AXIS_SM_POS);
         } else {
             gdraw_command_image_draw(ctx, prev_image, prev_pos);
         }
@@ -198,7 +198,7 @@ static void draw_page_images(GContext* ctx) {
         // Check if this is the axis image (precipitation case on conditions page, hour 0)
         if (page_view == VIEW_PAGE_CONDITIONS && hour_view == 0 && precipitation.precipitation_type > 0) {
             // Use special axis position instead of normal current position
-            gdraw_command_image_draw(ctx, current_image, layout.axis_large_pos);
+            gdraw_command_image_draw(ctx, current_image, LAYOUT_AXIS_LG_POS);
         } else {
             gdraw_command_image_draw(ctx, current_image, current_pos);
         }
@@ -376,25 +376,25 @@ static void main_layer_update_proc(Layer* layer, GContext* ctx) {
 
 static void init_layers(Layer* window_layer) {
   VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Initializing layers");
-  prev_time_layer = text_layer_create(layout.prev_time_bounds);
+  prev_time_layer = text_layer_create(LAYOUT_PREV_TIME_BOUNDS);
   text_layer_set_text(prev_time_layer, "9AM");
   text_layer_set_background_color(prev_time_layer, GColorClear);
-  text_layer_set_font(prev_time_layer, fonts_get_system_font(layout.time_font_key));
+  text_layer_set_font(prev_time_layer, fonts_get_system_font(LAYOUT_TIME_FONT));
 
-  current_time_layer = text_layer_create(layout.current_time_bounds);
+  current_time_layer = text_layer_create(LAYOUT_CUR_TIME_BOUNDS);
   text_layer_set_text(current_time_layer, "11AM");
   text_layer_set_background_color(current_time_layer, GColorClear);
-  text_layer_set_font(current_time_layer, fonts_get_system_font(layout.time_font_key));
+  text_layer_set_font(current_time_layer, fonts_get_system_font(LAYOUT_TIME_FONT));
 
-  current_text_layer = text_layer_create(layout.current_text_bounds);
+  current_text_layer = text_layer_create(LAYOUT_CUR_TEXT_BOUNDS);
   text_layer_set_text(current_text_layer, "12mph SW\n26mph gusts\n1004mb");
   text_layer_set_background_color(current_text_layer, GColorClear);
-  text_layer_set_font(current_text_layer, fonts_get_system_font(layout.text_font_key));
+  text_layer_set_font(current_text_layer, fonts_get_system_font(LAYOUT_TEXT_FONT));
 
-  next_time_layer = text_layer_create(layout.next_time_bounds);
+  next_time_layer = text_layer_create(LAYOUT_NEXT_TIME_BOUNDS);
   text_layer_set_text(next_time_layer, "1PM");
   text_layer_set_background_color(next_time_layer, GColorClear);
-  text_layer_set_font(next_time_layer, fonts_get_system_font(layout.time_font_key));
+  text_layer_set_font(next_time_layer, fonts_get_system_font(LAYOUT_TIME_FONT));
   VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Time layers initialized");
   // Register main layers for animation system (only if animations enabled)
   if(animations_enabled()) {

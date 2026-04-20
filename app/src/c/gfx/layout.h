@@ -2,281 +2,134 @@
 
 #include <pebble.h>
 
-// Layout structure to hold all UI element positions and dimensions
-typedef struct {
-    // Screen dimensions
-    int16_t screen_width;
-    int16_t screen_height;
-    bool is_round;
-    bool is_pixel_dense;
-    
-    // Padding values
-    int16_t padding_top;
-    int16_t padding_bottom;
-    int16_t padding_left;
-    int16_t padding_right;
-    
-    // Text layer dimensions
-    int16_t text_height;
-    int16_t text_width;
+// ── Screen ────────────────────────────────────────────────────────────────────
+#define LAYOUT_W  PBL_DISPLAY_WIDTH
+#define LAYOUT_H  PBL_DISPLAY_HEIGHT
 
-    // Font keys
-    char* time_font_key;
-    char* text_font_key;
-    
-    // Icon dimensions
-    int16_t icon_small;
-    int16_t icon_large;
-    
-    // Precipitation graph dimensions
-    int16_t precipitation_graph_width;
-    int16_t precipitation_graph_height;
-    
-    // Text layer positions
-    GPoint prev_time_pos;
-    GPoint current_time_pos;
-    GPoint current_text_pos;
-    GPoint next_time_pos;
-    
-    // Icon positions
-    GPoint prev_icon_pos;
-    GPoint current_icon_pos;
-    GPoint next_icon_pos;
-    
-    // Precipitation graph position
-    GPoint precipitation_graph_pos;
-    
-    // Axis image positions (for precipitation axis)
-    GPoint axis_small_pos;  // 25x10 axis image position
-    GPoint axis_large_pos;  // 86x10 axis image position
-    
-    // Text layer bounds
-    GRect prev_time_bounds;
-    GRect current_time_bounds;
-    GRect current_text_bounds;
-    GRect next_time_bounds;
-    
-    // Icon bounds
-    GRect prev_icon_bounds;
-    GRect current_icon_bounds;
-    GRect next_icon_bounds;
-    
-    // Precipitation graph bounds
-    GRect precipitation_graph_bounds;
-    
-    // Axis image bounds
-    GRect axis_small_bounds;  // 25x10 axis image bounds
-    GRect axis_large_bounds;  // 86x10 axis image bounds
-    
-    // Splash screen layout
-    GRect splash_image_bounds;      // Top third for image
-    GRect splash_text_bounds;       // Bottom area for status text
-    GPoint splash_image_center;     // Center point for image positioning
-} Layout;
+// ── Pixel-dense platforms (Emery / Gabbro) ───────────────────────────────────
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
+  #define LAYOUT_PIXEL_DENSE 1
+#else
+  #define LAYOUT_PIXEL_DENSE 0
+#endif
 
-// Global layout instance
-Layout layout;
+// ── Padding ───────────────────────────────────────────────────────────────────
+#if defined(PBL_ROUND)
+  #if LAYOUT_PIXEL_DENSE
+    #define LAYOUT_PAD_L  28
+    #define LAYOUT_PAD_R  28
+    #define LAYOUT_PAD_T  24
+    #define LAYOUT_PAD_B  24
+  #else
+    #define LAYOUT_PAD_L  18
+    #define LAYOUT_PAD_R  18
+    #define LAYOUT_PAD_T  16
+    #define LAYOUT_PAD_B  16
+  #endif
+#else
+  #define LAYOUT_PAD_L  6
+  #define LAYOUT_PAD_R  6
+  #define LAYOUT_PAD_T  4
+  #define LAYOUT_PAD_B  4
+#endif
 
-// Initialize the layout based on provided screen parameters
-static void layout_init(int16_t screen_width, int16_t screen_height, bool is_round, bool is_pixel_dense) {
-    // Set screen parameters
-    layout.screen_width = screen_width;
-    layout.screen_height = screen_height;
-    layout.is_round = is_round;
-    layout.is_pixel_dense = is_pixel_dense;
+// ── Text ──────────────────────────────────────────────────────────────────────
+#if LAYOUT_PIXEL_DENSE
+  #define LAYOUT_TEXT_H  30
+#else
+  #define LAYOUT_TEXT_H  20
+#endif
+#define LAYOUT_TEXT_W  (LAYOUT_W - LAYOUT_PAD_L - LAYOUT_PAD_R)
 
-    // Set padding values locally
-    if(is_round) {
-        if(is_pixel_dense) {
-            layout.padding_left = 28;
-            layout.padding_right = 28;
-            layout.padding_top = 24;
-            layout.padding_bottom = 24;
-        } else {
-            layout.padding_left = 18;
-            layout.padding_right = 18;
-            layout.padding_top = 16;
-            layout.padding_bottom = 16;
-        }
-    } else {
-        layout.padding_left = 6;
-        layout.padding_right = 6;
-        layout.padding_top = 4;
-        layout.padding_bottom = 4;
-    }
-    
-    // Set text dimensions
-    layout.text_height = layout.is_pixel_dense ? 30 : 20;
-    layout.text_width = layout.screen_width - layout.padding_left - layout.padding_right;
-    
-    //Font keys
-    #ifdef PBL_PLATFORM_APLITE
-        layout.time_font_key = FONT_KEY_GOTHIC_18_BOLD;
-    #else
-        layout.time_font_key = layout.is_pixel_dense ? FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM : FONT_KEY_LECO_20_BOLD_NUMBERS;
-    #endif
-    
-    layout.text_font_key = layout.is_pixel_dense ? FONT_KEY_GOTHIC_28 : FONT_KEY_GOTHIC_18;
-    
-    // Set icon dimensions
-    layout.icon_small = 25;
-    layout.icon_large = 50;
-    
-    // Set precipitation graph dimensions
-    layout.precipitation_graph_width = 84;
-    layout.precipitation_graph_height = 40;
-    
-    // Calculate text positions (left padding affects x values for all text)
-    if (layout.is_round) {
-        // For round screens, prev and next use vertical padding for placement
-        // Use ~1/4 screen width for side padding due to curved screen edges
-        int16_t round_padding = layout.screen_width / 4;
-        layout.prev_time_pos = GPoint(round_padding, layout.padding_top);
-        layout.current_time_pos = GPoint(layout.padding_left, layout.screen_height/2 - layout.text_height*2);
-        layout.current_text_pos = GPoint(layout.padding_left, layout.screen_height/2 - layout.text_height);
-        layout.next_time_pos = GPoint(round_padding, layout.screen_height - layout.text_height - layout.padding_bottom - 3);
-    } else {
-        // For rectangular screens, use original positioning with padding
-        layout.prev_time_pos = GPoint(layout.padding_left, layout.padding_top);
-        layout.current_time_pos = GPoint(layout.padding_left, layout.screen_height/2 - layout.text_height*2);
-        layout.current_text_pos = GPoint(layout.padding_left, layout.screen_height/2 - layout.text_height);
-        layout.next_time_pos = GPoint(layout.padding_left, layout.screen_height - layout.text_height - layout.padding_bottom - 3);
-    }
-    
-    // Calculate icon positions (right padding affects x values for all icons)
-    if (layout.is_round) {
-        // For round screens, prev and next use vertical padding for placement
-        // Use ~1/4 screen width for side padding due to curved screen edges
-        int16_t round_icon_padding = layout.screen_width / 4;
-        layout.prev_icon_pos = GPoint(layout.screen_width - layout.icon_small - round_icon_padding, 
-                                      layout.padding_top);
-        layout.current_icon_pos = GPoint(layout.screen_width - layout.icon_large - layout.padding_right, 
-                                         layout.screen_height/2 - layout.icon_large/2);
-        layout.next_icon_pos = GPoint(layout.screen_width - layout.icon_small - round_icon_padding, 
-                                      layout.screen_height - layout.icon_small - layout.padding_bottom);
-    } else {
-        // For rectangular screens, use original positioning with right padding
-        layout.prev_icon_pos = GPoint(layout.screen_width - layout.icon_small - layout.padding_right, layout.padding_top);
-        layout.current_icon_pos = GPoint(layout.screen_width - layout.icon_large - layout.padding_right, 
-                                         layout.screen_height/2 - layout.icon_large/2);
-        layout.next_icon_pos = GPoint(layout.screen_width - layout.icon_small - layout.padding_right, 
-                                      layout.screen_height - layout.icon_small - layout.padding_bottom);
-    }
-    
-    // Calculate precipitation graph position
-    layout.precipitation_graph_pos = GPoint(
-        layout.screen_width - layout.precipitation_graph_width - layout.padding_right,
-        (layout.screen_height - layout.precipitation_graph_height) / 2
-    );
-    
-    // Calculate axis image positions
-    // Large axis (86x10) positioned beneath precipitation graph, centered horizontally with it
-    layout.axis_large_pos = GPoint(
-        layout.precipitation_graph_pos.x - 1, //stay in line with graph
-        layout.precipitation_graph_pos.y + layout.precipitation_graph_height - 4  // 2px below graph
-    );
-    
-    // Small axis (25x10) centered within prev icon position (25x25)
-    layout.axis_small_pos = GPoint(
-        layout.prev_icon_pos.x,  // Same X as 25x25 position (25x10 fits exactly in width)
-        layout.prev_icon_pos.y + (layout.icon_small - 10) / 2  // Center vertically: (25-10)/2 = 7.5 ≈ 8
-    );
+// ── Fonts ─────────────────────────────────────────────────────────────────────
+#if defined(PBL_PLATFORM_APLITE)
+  #define LAYOUT_TIME_FONT  FONT_KEY_GOTHIC_18_BOLD
+#elif LAYOUT_PIXEL_DENSE
+  #define LAYOUT_TIME_FONT  FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM
+#else
+  #define LAYOUT_TIME_FONT  FONT_KEY_LECO_20_BOLD_NUMBERS
+#endif
 
-    
-    // Calculate text bounds
-    if (layout.is_round) {
-        // For round screens, prev and next use vertical padding for placement
-        // Use ~1/4 screen width for side padding due to curved screen edges
-        int16_t round_padding = layout.screen_width / 4;
-        int16_t round_text_width = layout.screen_width - (round_padding * 2);
-        layout.prev_time_bounds = GRect(round_padding, layout.padding_top, 
-                                       round_text_width, layout.text_height);
-        layout.current_time_bounds = GRect(layout.padding_left, layout.screen_height/2 - layout.text_height*2, 
-                                           layout.text_width, layout.text_height);
-        layout.current_text_bounds = GRect(layout.padding_left, layout.screen_height/2 - layout.text_height, 
-                                           layout.text_width, layout.text_height*3);
-        layout.next_time_bounds = GRect(round_padding, layout.screen_height - layout.text_height - layout.padding_bottom, 
-                                        round_text_width, layout.text_height);
-    } else {
-        // For rectangular screens, use original positioning with padding
-        layout.prev_time_bounds = GRect(layout.padding_left, layout.padding_top, layout.text_width, layout.text_height);
-        layout.current_time_bounds = GRect(layout.padding_left, layout.screen_height/2 - layout.text_height*2, 
-                                           layout.text_width, layout.text_height);
-        layout.current_text_bounds = GRect(layout.padding_left, layout.screen_height/2 - layout.text_height, 
-                                           layout.text_width, layout.text_height*3);
-        layout.next_time_bounds = GRect(layout.padding_left, layout.screen_height - layout.text_height - layout.padding_bottom, 
-                                        layout.text_width, layout.text_height);
-    }
-    
-    // Calculate icon bounds
-    if (layout.is_round) {
-        // For round screens, prev and next use vertical padding for placement
-        // Use ~1/4 screen width for side padding due to curved screen edges
-        int16_t round_icon_padding = layout.screen_width / 4;
-        layout.prev_icon_bounds = GRect(layout.screen_width - layout.icon_small - round_icon_padding, 
-                                       layout.padding_top,
-                                       layout.icon_small, layout.icon_small);
-        layout.current_icon_bounds = GRect(layout.screen_width - layout.icon_large - layout.padding_right, 
-                                           layout.screen_height/2 - layout.icon_large/2, 
-                                           layout.icon_large, layout.icon_large);
-        layout.next_icon_bounds = GRect(layout.screen_width - layout.icon_small - round_icon_padding, 
-                                       layout.screen_height - layout.icon_small - layout.padding_bottom,
-                                       layout.icon_small, layout.icon_small);
-    } else {
-        // For rectangular screens, use original positioning with right padding
-        layout.prev_icon_bounds = GRect(layout.screen_width - layout.icon_small - layout.padding_right, layout.padding_top, 
-                                        layout.icon_small, layout.icon_small);
-        layout.current_icon_bounds = GRect(layout.screen_width - layout.icon_large - layout.padding_right, 
-                                           layout.screen_height/2 - layout.icon_large/2, 
-                                           layout.icon_large, layout.icon_large);
-        layout.next_icon_bounds = GRect(layout.screen_width - layout.icon_small - layout.padding_right, 
-                                        layout.screen_height - layout.icon_small - layout.padding_bottom, 
-                                        layout.icon_small, layout.icon_small);
-    }
-    
-    // Calculate precipitation graph bounds
-    layout.precipitation_graph_bounds = GRect(
-        layout.precipitation_graph_pos.x,
-        layout.precipitation_graph_pos.y,
-        layout.precipitation_graph_width,
-        layout.precipitation_graph_height
-    );
-    
-    // Calculate axis image bounds
-    layout.axis_small_bounds = GRect(
-        layout.axis_small_pos.x,
-        layout.axis_small_pos.y,
-        25,  // 25x10 axis image
-        10
-    );
-    
-    layout.axis_large_bounds = GRect(
-        layout.axis_large_pos.x,
-        layout.axis_large_pos.y,
-        86,  // 86x10 axis image  
-        10
-    );
-    
-    // Calculate splash screen layout
-    // Image area: top 2/3 of screen
-    layout.splash_image_bounds = GRect(
-        0,
-        0,
-        layout.screen_width,
-        layout.screen_height * 2 / 3
-    );
-    
-    // Text area: bottom 1/3 of screen with padding
-    layout.splash_text_bounds = GRect(
-        layout.padding_left,
-        layout.screen_height * 2 / 3,
-        layout.screen_width - layout.padding_left - layout.padding_right,
-        layout.screen_height / 3
-    );
-    
-    // Center point for 80x80 image in the top 2/3 area
-    layout.splash_image_center = GPoint(
-        layout.screen_width / 2,
-        (layout.screen_height * 2 / 3) / 2
-    );
-}
+#if LAYOUT_PIXEL_DENSE
+  #define LAYOUT_TEXT_FONT  FONT_KEY_GOTHIC_28
+#else
+  #define LAYOUT_TEXT_FONT  FONT_KEY_GOTHIC_18
+#endif
+
+// ── Icons ─────────────────────────────────────────────────────────────────────
+#define LAYOUT_ICON_SM  25
+#define LAYOUT_ICON_LG  50
+
+// ── Precipitation graph ───────────────────────────────────────────────────────
+#define LAYOUT_PRECIP_W  84
+#define LAYOUT_PRECIP_H  40
+#define LAYOUT_PRECIP_X  (LAYOUT_W - LAYOUT_PRECIP_W - LAYOUT_PAD_R)
+#define LAYOUT_PRECIP_Y  ((LAYOUT_H - LAYOUT_PRECIP_H) / 2)
+#define LAYOUT_PRECIP_POS     GPoint(LAYOUT_PRECIP_X, LAYOUT_PRECIP_Y)
+#define LAYOUT_PRECIP_BOUNDS  GRect(LAYOUT_PRECIP_X, LAYOUT_PRECIP_Y, LAYOUT_PRECIP_W, LAYOUT_PRECIP_H)
+
+// ── Axis images ───────────────────────────────────────────────────────────────
+// prev_icon x is needed by both the icon and the small axis, so expose it
+#if defined(PBL_ROUND)
+  #define LAYOUT_PREV_ICON_X  (LAYOUT_W - LAYOUT_ICON_SM - LAYOUT_W / 4)
+#else
+  #define LAYOUT_PREV_ICON_X  (LAYOUT_W - LAYOUT_ICON_SM - LAYOUT_PAD_R)
+#endif
+#define LAYOUT_PREV_ICON_Y  LAYOUT_PAD_T
+
+// 25x10 axis centered on the prev-icon slot
+#define LAYOUT_AXIS_SM_POS     GPoint(LAYOUT_PREV_ICON_X, LAYOUT_PREV_ICON_Y + (LAYOUT_ICON_SM - 10) / 2)
+#define LAYOUT_AXIS_SM_BOUNDS  GRect(LAYOUT_PREV_ICON_X, LAYOUT_PREV_ICON_Y + (LAYOUT_ICON_SM - 10) / 2, 25, 10)
+
+// 86x10 axis aligned with the left edge of the precipitation graph
+#define LAYOUT_AXIS_LG_POS     GPoint(LAYOUT_PRECIP_X - 1, LAYOUT_PRECIP_Y + LAYOUT_PRECIP_H - 4)
+#define LAYOUT_AXIS_LG_BOUNDS  GRect(LAYOUT_PRECIP_X - 1, LAYOUT_PRECIP_Y + LAYOUT_PRECIP_H - 4, 86, 10)
+
+// ── Text positions & bounds ───────────────────────────────────────────────────
+#if defined(PBL_ROUND)
+  #define LAYOUT_ROUND_TEXT_W    (LAYOUT_W - (LAYOUT_W / 4) * 2)
+
+  #define LAYOUT_PREV_TIME_POS   GPoint(LAYOUT_W / 4, LAYOUT_PAD_T)
+  #define LAYOUT_CUR_TIME_POS    GPoint(LAYOUT_PAD_L, LAYOUT_H / 2 - LAYOUT_TEXT_H * 2)
+  #define LAYOUT_CUR_TEXT_POS    GPoint(LAYOUT_PAD_L, LAYOUT_H / 2 - LAYOUT_TEXT_H)
+  #define LAYOUT_NEXT_TIME_POS   GPoint(LAYOUT_W / 4, LAYOUT_H - LAYOUT_TEXT_H - LAYOUT_PAD_B - 3)
+
+  #define LAYOUT_PREV_TIME_BOUNDS   GRect(LAYOUT_W / 4,  LAYOUT_PAD_T,                          LAYOUT_ROUND_TEXT_W, LAYOUT_TEXT_H)
+  #define LAYOUT_CUR_TIME_BOUNDS    GRect(LAYOUT_PAD_L,  LAYOUT_H / 2 - LAYOUT_TEXT_H * 2,      LAYOUT_TEXT_W,       LAYOUT_TEXT_H)
+  #define LAYOUT_CUR_TEXT_BOUNDS    GRect(LAYOUT_PAD_L,  LAYOUT_H / 2 - LAYOUT_TEXT_H,          LAYOUT_TEXT_W,       LAYOUT_TEXT_H * 3)
+  #define LAYOUT_NEXT_TIME_BOUNDS   GRect(LAYOUT_W / 4,  LAYOUT_H - LAYOUT_TEXT_H - LAYOUT_PAD_B, LAYOUT_ROUND_TEXT_W, LAYOUT_TEXT_H)
+#else
+  #define LAYOUT_PREV_TIME_POS   GPoint(LAYOUT_PAD_L, LAYOUT_PAD_T)
+  #define LAYOUT_CUR_TIME_POS    GPoint(LAYOUT_PAD_L, LAYOUT_H / 2 - LAYOUT_TEXT_H * 2)
+  #define LAYOUT_CUR_TEXT_POS    GPoint(LAYOUT_PAD_L, LAYOUT_H / 2 - LAYOUT_TEXT_H)
+  #define LAYOUT_NEXT_TIME_POS   GPoint(LAYOUT_PAD_L, LAYOUT_H - LAYOUT_TEXT_H - LAYOUT_PAD_B - 3)
+
+  #define LAYOUT_PREV_TIME_BOUNDS   GRect(LAYOUT_PAD_L, LAYOUT_PAD_T,                          LAYOUT_TEXT_W, LAYOUT_TEXT_H)
+  #define LAYOUT_CUR_TIME_BOUNDS    GRect(LAYOUT_PAD_L, LAYOUT_H / 2 - LAYOUT_TEXT_H * 2,      LAYOUT_TEXT_W, LAYOUT_TEXT_H)
+  #define LAYOUT_CUR_TEXT_BOUNDS    GRect(LAYOUT_PAD_L, LAYOUT_H / 2 - LAYOUT_TEXT_H,          LAYOUT_TEXT_W, LAYOUT_TEXT_H * 3)
+  #define LAYOUT_NEXT_TIME_BOUNDS   GRect(LAYOUT_PAD_L, LAYOUT_H - LAYOUT_TEXT_H - LAYOUT_PAD_B, LAYOUT_TEXT_W, LAYOUT_TEXT_H)
+#endif
+
+// ── Icon positions & bounds ───────────────────────────────────────────────────
+#if defined(PBL_ROUND)
+  #define LAYOUT_PREV_ICON_POS   GPoint(LAYOUT_PREV_ICON_X, LAYOUT_PAD_T)
+  #define LAYOUT_CUR_ICON_POS    GPoint(LAYOUT_W - LAYOUT_ICON_LG - LAYOUT_PAD_R, LAYOUT_H / 2 - LAYOUT_ICON_LG / 2)
+  #define LAYOUT_NEXT_ICON_POS   GPoint(LAYOUT_W - LAYOUT_ICON_SM - LAYOUT_W / 4, LAYOUT_H - LAYOUT_ICON_SM - LAYOUT_PAD_B)
+
+  #define LAYOUT_PREV_ICON_BOUNDS   GRect(LAYOUT_PREV_ICON_X,                       LAYOUT_PAD_T,                              LAYOUT_ICON_SM, LAYOUT_ICON_SM)
+  #define LAYOUT_CUR_ICON_BOUNDS    GRect(LAYOUT_W - LAYOUT_ICON_LG - LAYOUT_PAD_R, LAYOUT_H / 2 - LAYOUT_ICON_LG / 2,        LAYOUT_ICON_LG, LAYOUT_ICON_LG)
+  #define LAYOUT_NEXT_ICON_BOUNDS   GRect(LAYOUT_W - LAYOUT_ICON_SM - LAYOUT_W / 4, LAYOUT_H - LAYOUT_ICON_SM - LAYOUT_PAD_B, LAYOUT_ICON_SM, LAYOUT_ICON_SM)
+#else
+  #define LAYOUT_PREV_ICON_POS   GPoint(LAYOUT_PREV_ICON_X, LAYOUT_PAD_T)
+  #define LAYOUT_CUR_ICON_POS    GPoint(LAYOUT_W - LAYOUT_ICON_LG - LAYOUT_PAD_R, LAYOUT_H / 2 - LAYOUT_ICON_LG / 2)
+  #define LAYOUT_NEXT_ICON_POS   GPoint(LAYOUT_W - LAYOUT_ICON_SM - LAYOUT_PAD_R, LAYOUT_H - LAYOUT_ICON_SM - LAYOUT_PAD_B)
+
+  #define LAYOUT_PREV_ICON_BOUNDS   GRect(LAYOUT_PREV_ICON_X,                       LAYOUT_PAD_T,                              LAYOUT_ICON_SM, LAYOUT_ICON_SM)
+  #define LAYOUT_CUR_ICON_BOUNDS    GRect(LAYOUT_W - LAYOUT_ICON_LG - LAYOUT_PAD_R, LAYOUT_H / 2 - LAYOUT_ICON_LG / 2,        LAYOUT_ICON_LG, LAYOUT_ICON_LG)
+  #define LAYOUT_NEXT_ICON_BOUNDS   GRect(LAYOUT_W - LAYOUT_ICON_SM - LAYOUT_PAD_R, LAYOUT_H - LAYOUT_ICON_SM - LAYOUT_PAD_B, LAYOUT_ICON_SM, LAYOUT_ICON_SM)
+#endif
+
+// ── Splash screen ─────────────────────────────────────────────────────────────
+#define LAYOUT_SPLASH_IMG_BOUNDS   GRect(0,            0,                 LAYOUT_W,      LAYOUT_H * 2 / 3)
+#define LAYOUT_SPLASH_TEXT_BOUNDS  GRect(LAYOUT_PAD_L, LAYOUT_H * 2 / 3, LAYOUT_TEXT_W, LAYOUT_H / 3)
+#define LAYOUT_SPLASH_IMG_CENTER   GPoint(LAYOUT_W / 2, (LAYOUT_H * 2 / 3) / 2)

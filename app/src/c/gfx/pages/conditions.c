@@ -152,7 +152,7 @@ Layer* init_conditions_layers(Layer* window_layer, GDrawCommandImage** prev_imag
 
     // Initialize precipitation graph
     precipitation_graph = gpath_create(&precipitation_graph_info);
-    precipitation_graph->offset = layout.precipitation_graph_pos;
+    precipitation_graph->offset = LAYOUT_PRECIP_POS;
 
     return conditions_layer;
 }
@@ -166,22 +166,22 @@ void draw_conditions(Layer* layer, GContext* ctx) {
     if (selected_hour == 0 && precipitation.precipitation_type > 0 && show_graph) {
         // Draw the precipitation graph, first hours worth of points
         for (int i = 0; i < 13; i++) {
-            precipitation_graph_info.points[i].y = layout.precipitation_graph_height - (precipitation.precipitation_intensity[i] * (layout.precipitation_graph_height/4));
+            precipitation_graph_info.points[i].y = LAYOUT_PRECIP_H - (precipitation.precipitation_intensity[i] * (LAYOUT_PRECIP_H / 4));
         }
 
         // Last two points stay at bottom
-        precipitation_graph_info.points[13].y = layout.precipitation_graph_height;
-        precipitation_graph_info.points[14].y = layout.precipitation_graph_height;
+        precipitation_graph_info.points[13].y = LAYOUT_PRECIP_H;
+        precipitation_graph_info.points[14].y = LAYOUT_PRECIP_H;
 
         // Draw 3 lines to signify precipitation intensity
         graphics_context_set_stroke_width(ctx, 1);
         graphics_context_set_stroke_color(ctx, GColorDarkGray);
 
         for (int i = 1; i < 4; i++) {
-            int xoffset = layout.precipitation_graph_pos.x;
-            int yoffset = layout.precipitation_graph_pos.y;
-            int y = (i * (layout.precipitation_graph_height/4));
-            graphics_draw_line(ctx, GPoint(xoffset, y+yoffset), GPoint(layout.precipitation_graph_width+xoffset, y+yoffset));
+            int xoffset = LAYOUT_PRECIP_X;
+            int yoffset = LAYOUT_PRECIP_Y;
+            int y = (i * (LAYOUT_PRECIP_H / 4));
+            graphics_draw_line(ctx, GPoint(xoffset, y + yoffset), GPoint(LAYOUT_PRECIP_W + xoffset, y + yoffset));
         }
 
         graphics_context_set_fill_color(ctx, GColorWhite);

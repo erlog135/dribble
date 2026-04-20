@@ -139,6 +139,6 @@ void draw_experiential(Layer* layer, GContext* ctx) {
     // Draw the emoji in center
     // The current experiential image will be drawn by main.c on top of this
     if (emoji_image) {
-        gdraw_command_image_draw(ctx, emoji_image, layout.current_icon_pos);
+        gdraw_command_image_draw(ctx, emoji_image, LAYOUT_CUR_ICON_POS);
     }
 } 

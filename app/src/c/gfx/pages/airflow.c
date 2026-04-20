@@ -254,9 +254,9 @@ void draw_airflow(Layer* layer, GContext* ctx) {
     }
 
     // Use layout positioning for the wind vane center
-    GPoint center = layout.current_icon_pos;
-    center.x += layout.icon_large / 2;  // Center of the 50px icon
-    center.y += layout.icon_large / 2;
+    GPoint center = LAYOUT_CUR_ICON_POS;
+    center.x += LAYOUT_ICON_LG / 2;
+    center.y += LAYOUT_ICON_LG / 2;
     
     // Set up the drawing style
     graphics_context_set_stroke_width(ctx, 1);

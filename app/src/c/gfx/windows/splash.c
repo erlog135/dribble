@@ -34,8 +34,8 @@ static void image_layer_update_proc(Layer* layer, GContext* ctx) {
         
         // Center the image using layout values
         GPoint origin;
-        origin.x = layout.splash_image_center.x - image_size.w / 2;
-        origin.y = layout.splash_image_center.y - image_size.h / 2;
+        origin.x = LAYOUT_SPLASH_IMG_CENTER.x - image_size.w / 2;
+        origin.y = LAYOUT_SPLASH_IMG_CENTER.y - image_size.h / 2;
         
         gdraw_command_image_draw(ctx, splash_image, origin);
     }
@@ -127,28 +127,15 @@ static void start_demo_data(void) {
 static void splash_window_load(Window *window) {
     Layer *window_layer = window_get_root_layer(window);
     window_set_background_color(window, PBL_IF_COLOR_ELSE(GColorVividCerulean, GColorWhite));
-    GRect bounds = layer_get_bounds(window_layer);
-
-    // Initialize layout first
-    layout_init(
-        bounds.size.w,
-        bounds.size.h,
-        PBL_IF_ROUND_ELSE(true, false),
-    #if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
-        true
-    #else
-        false
-    #endif
-    );
 
     // Create image layer using layout bounds for top third
-    image_layer = layer_create(layout.splash_image_bounds);
+    image_layer = layer_create(LAYOUT_SPLASH_IMG_BOUNDS);
     splash_image = gdraw_command_image_create_with_resource(RESOURCE_ID_RETRIEVAL);
     layer_set_update_proc(image_layer, image_layer_update_proc);
     layer_add_child(window_layer, image_layer);
 
     // Create status text layer using layout bounds
-    status_text_layer = text_layer_create(layout.splash_text_bounds);
+    status_text_layer = text_layer_create(LAYOUT_SPLASH_TEXT_BOUNDS);
     text_layer_set_text(status_text_layer, status_text);
     text_layer_set_background_color(status_text_layer, GColorClear);
     text_layer_set_text_color(status_text_layer, GColorBlack);

@@ -17,16 +17,16 @@ static void transition_animation_complete_callback(void) {
     
     // Restore all layers to their proper layout positions
     if (s_transition_animation_context.current_time_layer) {
-        layer_set_frame(text_layer_get_layer(s_transition_animation_context.current_time_layer), layout.current_time_bounds);
+        layer_set_frame(text_layer_get_layer(s_transition_animation_context.current_time_layer), LAYOUT_CUR_TIME_BOUNDS);
     }
     if (s_transition_animation_context.current_text_layer) {
-        layer_set_frame(text_layer_get_layer(s_transition_animation_context.current_text_layer), layout.current_text_bounds);
+        layer_set_frame(text_layer_get_layer(s_transition_animation_context.current_text_layer), LAYOUT_CUR_TEXT_BOUNDS);
     }
     if (s_transition_animation_context.prev_time_layer) {
-        layer_set_frame(text_layer_get_layer(s_transition_animation_context.prev_time_layer), layout.prev_time_bounds);
+        layer_set_frame(text_layer_get_layer(s_transition_animation_context.prev_time_layer), LAYOUT_PREV_TIME_BOUNDS);
     }
     if (s_transition_animation_context.next_time_layer) {
-        layer_set_frame(text_layer_get_layer(s_transition_animation_context.next_time_layer), layout.next_time_bounds);
+        layer_set_frame(text_layer_get_layer(s_transition_animation_context.next_time_layer), LAYOUT_NEXT_TIME_BOUNDS);
     }
     
     // Mark images layer as dirty to redraw with normal positions
@@ -231,64 +231,67 @@ void transition_animation_start(void (*on_complete)(void)) {
         return;
     }
     
+    // Snapshot layout bounds as locals (needed for pointer passing to property_animation_create_layer_frame)
+    GRect cur_time_bounds  = LAYOUT_CUR_TIME_BOUNDS;
+    GRect cur_text_bounds  = LAYOUT_CUR_TEXT_BOUNDS;
+    GRect prev_time_bounds = LAYOUT_PREV_TIME_BOUNDS;
+    GRect next_time_bounds = LAYOUT_NEXT_TIME_BOUNDS;
+
     // Calculate hop left positions (move left by 10 pixels)
-    GRect time_hop_left = GRect(layout.current_time_bounds.origin.x - 10,
-                               layout.current_time_bounds.origin.y,
-                               layout.current_time_bounds.size.w,
-                               layout.current_time_bounds.size.h);
-    
-    GRect text_hop_left = GRect(layout.current_text_bounds.origin.x - 5,
-                               layout.current_text_bounds.origin.y,
-                               layout.current_text_bounds.size.w,
-                               layout.current_text_bounds.size.h);
-    
-    GRect prev_hop_left = GRect(layout.prev_time_bounds.origin.x - 10,
-                               layout.prev_time_bounds.origin.y,
-                               layout.prev_time_bounds.size.w,
-                               layout.prev_time_bounds.size.h);
-    
-    GRect next_hop_left = GRect(layout.next_time_bounds.origin.x - 10,
-                               layout.next_time_bounds.origin.y,
-                               layout.next_time_bounds.size.w,
-                               layout.next_time_bounds.size.h);
-    
+    GRect time_hop_left = GRect(cur_time_bounds.origin.x - 10,
+                               cur_time_bounds.origin.y,
+                               cur_time_bounds.size.w,
+                               cur_time_bounds.size.h);
+
+    GRect text_hop_left = GRect(cur_text_bounds.origin.x - 5,
+                               cur_text_bounds.origin.y,
+                               cur_text_bounds.size.w,
+                               cur_text_bounds.size.h);
+
+    GRect prev_hop_left = GRect(prev_time_bounds.origin.x - 10,
+                               prev_time_bounds.origin.y,
+                               prev_time_bounds.size.w,
+                               prev_time_bounds.size.h);
+
+    GRect next_hop_left = GRect(next_time_bounds.origin.x - 10,
+                               next_time_bounds.origin.y,
+                               next_time_bounds.size.w,
+                               next_time_bounds.size.h);
+
     // Calculate image slide-in positions (start from right side of screen)
-    GRect prev_image_start = GRect(layout.screen_width + 20, layout.prev_icon_pos.y, 
-                                  layout.icon_small, layout.icon_small);
-    GRect current_image_start = GRect(layout.screen_width + 20, layout.current_icon_pos.y, 
-                                     layout.icon_large, layout.icon_large);
-    GRect next_image_start = GRect(layout.screen_width + 20, layout.next_icon_pos.y, 
-                                  layout.icon_small, layout.icon_small);
-    
+    GRect prev_image_start     = GRect(LAYOUT_W + 20, LAYOUT_PREV_ICON_POS.y, LAYOUT_ICON_SM, LAYOUT_ICON_SM);
+    GRect current_image_start  = GRect(LAYOUT_W + 20, LAYOUT_CUR_ICON_POS.y,  LAYOUT_ICON_LG, LAYOUT_ICON_LG);
+    GRect next_image_start     = GRect(LAYOUT_W + 20, LAYOUT_NEXT_ICON_POS.y, LAYOUT_ICON_SM, LAYOUT_ICON_SM);
+
     ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Creating transition animations - hop left by 10 pixels");
-    
+
     // Create text animations: move from original position to hop position and back
     // The custom curve will handle the "back" part automatically
     s_transition_animation_context.current_time_animation = property_animation_create_layer_frame(
         text_layer_get_layer(s_transition_animation_context.current_time_layer),
-        &layout.current_time_bounds, &time_hop_left
+        &cur_time_bounds, &time_hop_left
     );
-    
+
     s_transition_animation_context.current_text_animation = property_animation_create_layer_frame(
         text_layer_get_layer(s_transition_animation_context.current_text_layer),
-        &layout.current_text_bounds, &text_hop_left
+        &cur_text_bounds, &text_hop_left
     );
-    
+
     s_transition_animation_context.prev_time_animation = property_animation_create_layer_frame(
         text_layer_get_layer(s_transition_animation_context.prev_time_layer),
-        &layout.prev_time_bounds, &prev_hop_left
+        &prev_time_bounds, &prev_hop_left
     );
-    
+
     s_transition_animation_context.next_time_animation = property_animation_create_layer_frame(
         text_layer_get_layer(s_transition_animation_context.next_time_layer),
-        &layout.next_time_bounds, &next_hop_left
+        &next_time_bounds, &next_hop_left
     );
-    
+
     // Set up image animation - animate the entire images layer
     if (s_transition_animation_context.images_layer) {
         // Calculate the layer's current frame and target frame
         GRect current_frame = layer_get_frame(s_transition_animation_context.images_layer);
-        GRect start_frame = GRect(current_frame.origin.x + (layout.screen_width + 20), 
+        GRect start_frame = GRect(current_frame.origin.x + (LAYOUT_W + 20), 
                                  current_frame.origin.y,
                                  current_frame.size.w,
                                  current_frame.size.h);
@@ -365,17 +368,17 @@ void transition_animation_stop(void) {
 bool transition_animation_get_image_positions(GPoint* prev_pos, GPoint* current_pos, GPoint* next_pos) {
     if (s_transition_animation_context.state != ANIMATION_STATE_ANIMATING) {
         // Not animating, return normal positions - the viewer.c drawing logic will handle axis positioning
-        if (prev_pos) *prev_pos = layout.prev_icon_pos;
-        if (current_pos) *current_pos = layout.current_icon_pos;
-        if (next_pos) *next_pos = layout.next_icon_pos;
+        if (prev_pos) *prev_pos = LAYOUT_PREV_ICON_POS;
+        if (current_pos) *current_pos = LAYOUT_CUR_ICON_POS;
+        if (next_pos) *next_pos = LAYOUT_NEXT_ICON_POS;
         return false;
     }
-    
+
     // When the layer is animating, return normal positions since the layer itself is moving
     // The viewer.c drawing logic will handle axis positioning for individual images
-    if (prev_pos) *prev_pos = layout.prev_icon_pos;
-    if (current_pos) *current_pos = layout.current_icon_pos;
-    if (next_pos) *next_pos = layout.next_icon_pos;
+    if (prev_pos) *prev_pos = LAYOUT_PREV_ICON_POS;
+    if (current_pos) *current_pos = LAYOUT_CUR_ICON_POS;
+    if (next_pos) *next_pos = LAYOUT_NEXT_ICON_POS;
     
     return true;
 }

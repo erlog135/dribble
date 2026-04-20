@@ -267,12 +267,12 @@ static void progressive_image_layer_update_proc(Layer* layer, GContext* ctx) {
         // Draw new images selectively based on ready flags
         if (s_image_animation_context.show_prev_ready && current_prev) {
             // Check if this should use small axis positioning (conditions page, hour 1, with precipitation)
-            GPoint draw_pos = layout.prev_icon_pos;
+            GPoint draw_pos = LAYOUT_PREV_ICON_POS;
             if (s_image_animation_context.current_page == 0 && // VIEW_PAGE_CONDITIONS
-                s_image_animation_context.current_hour == 1 && 
+                s_image_animation_context.current_hour == 1 &&
                 precipitation.precipitation_type > 0) {
                 // Use small axis position for precipitation display
-                draw_pos = layout.axis_small_pos;
+                draw_pos = LAYOUT_AXIS_SM_POS;
                 ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Using small axis position for precipitation display");
             }
             gdraw_command_image_draw(ctx, current_prev, draw_pos);
@@ -280,19 +280,19 @@ static void progressive_image_layer_update_proc(Layer* layer, GContext* ctx) {
         }
         if (s_image_animation_context.show_current_ready && current_current) {
             // Check if this should use axis positioning (conditions page, hour 0, with precipitation)
-            GPoint draw_pos = layout.current_icon_pos;
+            GPoint draw_pos = LAYOUT_CUR_ICON_POS;
             if (s_image_animation_context.current_page == 0 && // VIEW_PAGE_CONDITIONS
-                s_image_animation_context.current_hour == 0 && 
+                s_image_animation_context.current_hour == 0 &&
                 precipitation.precipitation_type > 0) {
                 // Use axis position for precipitation display
-                draw_pos = layout.axis_large_pos;
+                draw_pos = LAYOUT_AXIS_LG_POS;
                 ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Using axis position for precipitation display");
             }
             gdraw_command_image_draw(ctx, current_current, draw_pos);
             ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Drawing ready current image at final position");
         }
         if (s_image_animation_context.show_next_ready && current_next) {
-            gdraw_command_image_draw(ctx, current_next, layout.next_icon_pos);
+            gdraw_command_image_draw(ctx, current_next, LAYOUT_NEXT_ICON_POS);
             ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Drawing ready next image at final position");
         }
     }
@@ -482,54 +482,47 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
         
         // Calculate source and destination rectangles
         // Check if we need to use axis positions for precipitation scenarios
-        GPoint from_pos_1 = layout.prev_icon_pos;
-        GPoint to_pos_1 = layout.current_icon_pos;
-        
+        GPoint from_pos_1 = LAYOUT_PREV_ICON_POS;
+        GPoint to_pos_1 = LAYOUT_CUR_ICON_POS;
+
         // Adjust for axis image positioning if needed
         if (page == 0 && precipitation.precipitation_type > 0) { // VIEW_PAGE_CONDITIONS with precipitation
             // UP direction from hour 1 to hour 0: prev (small axis from hour 1) → current (large axis at hour 0)
             if (hour == 0) {
-                from_pos_1 = layout.axis_small_pos;  // Coming from small axis
-                to_pos_1 = layout.axis_large_pos;    // Going to large axis
+                from_pos_1 = LAYOUT_AXIS_SM_POS;
+                to_pos_1 = LAYOUT_AXIS_LG_POS;
             }
         }
-        
+
         // Calculate dimensions for animation rectangles (UP direction)
-        // For precipitation scenarios, we need to use actual graph dimensions instead of icon dimensions
-        int from_width_1 = layout.icon_small;
-        int from_height_1 = layout.icon_small;
-        int to_width_1 = layout.icon_large;
-        int to_height_1 = layout.icon_large;
-        int from_width_2 = layout.icon_large;
-        int from_height_2 = layout.icon_large;
-        int to_width_2 = layout.icon_small;
-        int to_height_2 = layout.icon_small;
-        
+        int from_width_1 = LAYOUT_ICON_SM;
+        int from_height_1 = LAYOUT_ICON_SM;
+        int to_width_1 = LAYOUT_ICON_LG;
+        int to_height_1 = LAYOUT_ICON_LG;
+        int from_width_2 = LAYOUT_ICON_LG;
+        int from_height_2 = LAYOUT_ICON_LG;
+        int to_width_2 = LAYOUT_ICON_SM;
+        int to_height_2 = LAYOUT_ICON_SM;
+
         // Adjust dimensions for precipitation scenarios (UP direction)
         if (page == 0 && precipitation.precipitation_type > 0) { // VIEW_PAGE_CONDITIONS with precipitation
             if (hour == 0) {
-                // UP direction from hour 1 to hour 0: prev (small axis from hour 1) → current (large axis at hour 0)
-                // The large axis should use actual graph dimensions, not icon dimensions
-                to_width_1 = layout.precipitation_graph_width;   // 84px instead of 50px
-                to_height_1 = layout.precipitation_graph_height; // 40px instead of 50px
+                to_width_1 = LAYOUT_PRECIP_W;
+                to_height_1 = LAYOUT_PRECIP_H;
             }
         }
-        
+
         from_rect_1 = GRect(from_pos_1.x, from_pos_1.y, from_width_1, from_height_1);
         to_rect_1 = GRect(to_pos_1.x, to_pos_1.y, to_width_1, to_height_1);
-        
+
         // For second animation: current → next
-        GPoint from_pos_2 = layout.current_icon_pos;
-        GPoint to_pos_2 = layout.next_icon_pos;
-        
+        GPoint from_pos_2 = LAYOUT_CUR_ICON_POS;
+        GPoint to_pos_2 = LAYOUT_NEXT_ICON_POS;
+
         // Adjust for axis image positioning if needed
         if (page == 0 && precipitation.precipitation_type > 0) { // VIEW_PAGE_CONDITIONS with precipitation
-            // UP direction from hour 1 to hour 0: current (normal icon at hour 1) → next (normal icon)
-            // Need to check what the CURRENT stored image represents - if we're going TO hour 0,
-            // the stored current image is from hour 1 (normal position)
             if (hour == 0) {
-                // The stored current image was from hour 1, so it starts at normal current position
-                from_pos_2 = layout.current_icon_pos;  // Normal current position from hour 1
+                from_pos_2 = LAYOUT_CUR_ICON_POS;
                 // to_pos_2 stays as normal next position
             }
         }
@@ -555,45 +548,38 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
         
         // Calculate source and destination rectangles
         // Check if we need to use axis positions for precipitation scenarios
-        GPoint from_pos_1 = layout.next_icon_pos;
-        GPoint to_pos_1 = layout.current_icon_pos;
-        GPoint from_pos_2 = layout.current_icon_pos;
-        GPoint to_pos_2 = layout.prev_icon_pos;
-        
+        GPoint from_pos_1 = LAYOUT_NEXT_ICON_POS;
+        GPoint to_pos_1 = LAYOUT_CUR_ICON_POS;
+        GPoint from_pos_2 = LAYOUT_CUR_ICON_POS;
+        GPoint to_pos_2 = LAYOUT_PREV_ICON_POS;
+
         // Adjust for axis image positioning if needed
         if (page == 0 && precipitation.precipitation_type > 0) { // VIEW_PAGE_CONDITIONS with precipitation
             // DOWN direction from hour 0 to hour 1: stored images are from hour 0
             if (hour == 1) {
-                // Animation 1: next (normal) → current (normal) - stays normal
-                // Animation 2: current (large axis from hour 0) → prev (small axis at hour 1)
-                from_pos_2 = layout.axis_large_pos;  // Coming from large axis (hour 0)
-                to_pos_2 = layout.axis_small_pos;    // Going to small axis (hour 1)
+                from_pos_2 = LAYOUT_AXIS_LG_POS;
+                to_pos_2 = LAYOUT_AXIS_SM_POS;
             }
         }
-        
+
         // Calculate dimensions for animation rectangles
-        // For precipitation scenarios, we need to use actual graph dimensions instead of icon dimensions
-        int from_width_1 = layout.icon_small;
-        int from_height_1 = layout.icon_small;
-        int to_width_1 = layout.icon_large;
-        int to_height_1 = layout.icon_large;
-        int from_width_2 = layout.icon_large;
-        int from_height_2 = layout.icon_large;
-        int to_width_2 = layout.icon_small;
-        int to_height_2 = layout.icon_small;
-        
+        int from_width_1 = LAYOUT_ICON_SM;
+        int from_height_1 = LAYOUT_ICON_SM;
+        int to_width_1 = LAYOUT_ICON_LG;
+        int to_height_1 = LAYOUT_ICON_LG;
+        int from_width_2 = LAYOUT_ICON_LG;
+        int from_height_2 = LAYOUT_ICON_LG;
+        int to_width_2 = LAYOUT_ICON_SM;
+        int to_height_2 = LAYOUT_ICON_SM;
+
         // Adjust dimensions for precipitation scenarios
         if (page == 0 && precipitation.precipitation_type > 0) { // VIEW_PAGE_CONDITIONS with precipitation
             if (hour == 0) {
-                // UP direction from hour 1 to hour 0: prev (small axis from hour 1) → current (large axis at hour 0)
-                // The large axis should use actual graph dimensions, not icon dimensions
-                to_width_1 = layout.precipitation_graph_width;   // 84px instead of 50px
-                to_height_1 = layout.precipitation_graph_height; // 40px instead of 50px
+                to_width_1 = LAYOUT_PRECIP_W;
+                to_height_1 = LAYOUT_PRECIP_H;
             } else if (hour == 1) {
-                // DOWN direction from hour 0 to hour 1: current (large axis from hour 0) → prev (small axis at hour 1)
-                // The large axis should use actual graph dimensions, not icon dimensions
-                from_width_2 = layout.precipitation_graph_width;   // 84px instead of 50px
-                from_height_2 = layout.precipitation_graph_height; // 40px instead of 50px
+                from_width_2 = LAYOUT_PRECIP_W;
+                from_height_2 = LAYOUT_PRECIP_H;
             }
         }
         
