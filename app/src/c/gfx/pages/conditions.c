@@ -10,8 +10,9 @@ static uint8_t selected_hour = 0;
 // Graph drawing delay
 static AppTimer* graph_draw_timer = NULL;
 static bool show_graph = false;
+static bool graph_points_dirty = true;  // Re-bake Y coords on next draw when set.
 
-// Image references passed from main.c
+// Image references passed from viewer.c
 static GDrawCommandImage** prev_image_ref;
 static GDrawCommandImage** current_image_ref;
 static GDrawCommandImage** next_image_ref;
@@ -26,6 +27,9 @@ static GDrawCommandImage* axis_large_image;
 
 // Precipitation graph configuration
 static GPath* precipitation_graph;
+
+// Precomputed gridline Y offsets, hoisted out of the per-frame draw.
+static const int GRIDLINE_COUNT = 3;
 
 // The precipitation graph
 // 13 points for 0-60 minutes, in 5 minute intervals
@@ -56,8 +60,7 @@ static GPathInfo precipitation_graph_info = {
 static void graph_draw_timer_callback(void* context) {
     graph_draw_timer = NULL;
     show_graph = true;
-    
-    // Mark the layer as dirty to redraw with the graph
+
     if (conditions_layer) {
         layer_mark_dirty(conditions_layer);
     }
@@ -66,29 +69,22 @@ static void graph_draw_timer_callback(void* context) {
 void set_conditions_view(int hour) {
     is_active = (hour >= 0);
     selected_hour = hour;
-    
-    // Cancel any existing graph timer
+
     if (graph_draw_timer) {
         app_timer_cancel(graph_draw_timer);
         graph_draw_timer = NULL;
     }
-    
-    // Reset graph visibility - always start hidden immediately
     show_graph = false;
-    
-    // If switching to hour 0 with precipitation, ensure graph stays hidden during transition
-    if (hour == 0 && precipitation.precipitation_type > 0) {
-        // Force immediate redraw to hide any visible graph before starting timer
-        if (conditions_layer) {
-            layer_mark_dirty(conditions_layer);
-        }
-    }
 
-    // Update image references
+    // The graph's Y coordinates depend on precipitation data and on whether it's
+    // visible at all; re-bake on every activation so a new forecast or hour
+    // switch takes effect immediately on next draw.
+    graph_points_dirty = true;
+
     if (is_active) {
-        // Set previous hour condition icon if available
+        // Previous hour condition icon. For hour 1 following a precipitation
+        // hour 0, show the small axis image instead of a weather icon.
         if (hour > 0) {
-            // If viewing hour 1 and hour 0 had precipitation, show small axis instead
             if (hour == 1 && precipitation.precipitation_type > 0) {
                 *prev_image_ref = axis_small_image;
             } else {
@@ -98,38 +94,37 @@ void set_conditions_view(int hour) {
             *prev_image_ref = NULL;
         }
 
-        // Set current hour condition icon
-        if (selected_hour == 0 && precipitation.precipitation_type > 0) {
-            // Use axis image instead of hiding when precipitation exists
+        // Current hour condition icon. On hour 0 with precipitation we show the
+        // large axis beneath the graph instead of a weather icon.
+        if (hour == 0 && precipitation.precipitation_type > 0) {
             *current_image_ref = axis_large_image;
         } else {
             *current_image_ref = condition_images_50px[forecast_hours[hour].conditions_icon];
         }
 
-        // Set next hour condition icon if available
+        // Next hour condition icon.
         if (hour < 11) {
             *next_image_ref = condition_images_25px[forecast_hours[hour+1].conditions_icon];
         } else {
             *next_image_ref = NULL;
         }
-        
-        // Start graph draw timer if we're showing precipitation
+
         if (hour == 0 && precipitation.precipitation_type > 0) {
-            // Ensure graph starts hidden
-            show_graph = false;
-            graph_draw_timer = app_timer_register(300, graph_draw_timer_callback, NULL); // 300ms delay
+            graph_draw_timer = app_timer_register(300, graph_draw_timer_callback, NULL);
         }
-    } else {
-        // Clear all image references when inactive
-        *prev_image_ref = NULL;
-        *current_image_ref = NULL;
-        *next_image_ref = NULL;
     }
 
-    // Mark the layer as dirty to redraw
     if (conditions_layer) {
         layer_mark_dirty(conditions_layer);
     }
+}
+
+GDrawCommandImage* conditions_get_axis_small_image(void) {
+    return axis_small_image;
+}
+
+GDrawCommandImage* conditions_get_axis_large_image(void) {
+    return axis_large_image;
 }
 
 Layer* init_conditions_layers(Layer* window_layer, GDrawCommandImage** prev_image, GDrawCommandImage** current_image, GDrawCommandImage** next_image) {
@@ -162,35 +157,42 @@ void draw_conditions(Layer* layer, GContext* ctx) {
         return;
     }
 
-    // Only draw the precipitation graph if the first hour has precipitation AND the timer has elapsed
-    if (selected_hour == 0 && precipitation.precipitation_type > 0 && show_graph) {
-        // Draw the precipitation graph, first hours worth of points
-        for (int i = 0; i < 13; i++) {
-            precipitation_graph_info.points[i].y = LAYOUT_PRECIP_H - (precipitation.precipitation_intensity[i] * (LAYOUT_PRECIP_H / 4));
-        }
+    // Only draw the precipitation graph if hour 0 has precipitation and the
+    // stagger timer has elapsed.
+    if (selected_hour != 0 || precipitation.precipitation_type <= 0 || !show_graph) {
+        return;
+    }
 
-        // Last two points stay at bottom
+    // Re-bake graph Y coordinates only when inputs have changed. `draw_conditions`
+    // runs once per frame of any redraw the window triggers, so recomputing 15
+    // points each time is avoidable.
+    if (graph_points_dirty) {
+        const int step = LAYOUT_PRECIP_H / 4;
+        for (int i = 0; i < 13; i++) {
+            precipitation_graph_info.points[i].y = LAYOUT_PRECIP_H - (precipitation.precipitation_intensity[i] * step);
+        }
         precipitation_graph_info.points[13].y = LAYOUT_PRECIP_H;
         precipitation_graph_info.points[14].y = LAYOUT_PRECIP_H;
-
-        // Draw 3 lines to signify precipitation intensity
-        graphics_context_set_stroke_width(ctx, 1);
-        graphics_context_set_stroke_color(ctx, GColorDarkGray);
-
-        for (int i = 1; i < 4; i++) {
-            int xoffset = LAYOUT_PRECIP_X;
-            int yoffset = LAYOUT_PRECIP_Y;
-            int y = (i * (LAYOUT_PRECIP_H / 4));
-            graphics_draw_line(ctx, GPoint(xoffset, y + yoffset), GPoint(LAYOUT_PRECIP_W + xoffset, y + yoffset));
-        }
-
-        graphics_context_set_fill_color(ctx, GColorWhite);
-        gpath_draw_filled(ctx, precipitation_graph);
-
-        graphics_context_set_stroke_width(ctx, 2);
-        graphics_context_set_stroke_color(ctx, GColorBlack);
-        gpath_draw_outline(ctx, precipitation_graph);
+        graph_points_dirty = false;
     }
+
+    // Gridlines: three equally-spaced horizontal lines inside the precipitation rect.
+    graphics_context_set_stroke_width(ctx, 1);
+    graphics_context_set_stroke_color(ctx, GColorDarkGray);
+    const int step = LAYOUT_PRECIP_H / 4;
+    const int x0 = LAYOUT_PRECIP_X;
+    const int x1 = x0 + LAYOUT_PRECIP_W;
+    for (int i = 1; i <= GRIDLINE_COUNT; i++) {
+        int y = LAYOUT_PRECIP_Y + (i * step);
+        graphics_draw_line(ctx, GPoint(x0, y), GPoint(x1, y));
+    }
+
+    graphics_context_set_fill_color(ctx, GColorWhite);
+    gpath_draw_filled(ctx, precipitation_graph);
+
+    graphics_context_set_stroke_width(ctx, 2);
+    graphics_context_set_stroke_color(ctx, GColorBlack);
+    gpath_draw_outline(ctx, precipitation_graph);
 }
 
 void deinit_conditions_layers(void) {

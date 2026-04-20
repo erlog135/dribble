@@ -24,50 +24,32 @@ void set_experiential_view(int hour) {
     is_active = (hour >= 0);
     selected_hour = hour;
 
-    // Update icons
-    if(is_active) {
-        update_icons();
+    if (!is_active) {
+        return;
     }
 
-    // Update image references
-    if (is_active) {
-        // Get experiential icon for current hour
-        uint8_t current_experiential_icon = forecast_hours[hour].experiential_icon;
+    update_icons();
 
-        // Set previous hour experiential icon if available
-        if (hour > 0) {
-            uint8_t prev_experiential_icon = forecast_hours[hour - 1].experiential_icon;
-            if (prev_experiential_icon == 0) {
-                *prev_image_ref = NULL;
-            } else {
-                *prev_image_ref = experiential_images_25px[prev_experiential_icon - 1];
-            }
-        } else {
-            *prev_image_ref = NULL;
-        }
+    uint8_t current_experiential_icon = forecast_hours[hour].experiential_icon;
 
-        // Set current hour experiential icon (for animations)
-        if (current_experiential_icon == 0) {
-            *current_image_ref = NULL;
-        } else {
-            *current_image_ref = experiential_images_50px[current_experiential_icon - 1];
-        }
-
-        // Set next hour experiential icon if available
-        if (hour < 11) {
-            uint8_t next_experiential_icon = forecast_hours[hour + 1].experiential_icon;
-            if (next_experiential_icon == 0) {
-                *next_image_ref = NULL;
-            } else {
-                *next_image_ref = experiential_images_25px[next_experiential_icon - 1];
-            }
-        } else {
-            *next_image_ref = NULL;
-        }
+    // Previous hour experiential icon.
+    if (hour > 0) {
+        uint8_t prev = forecast_hours[hour - 1].experiential_icon;
+        *prev_image_ref = (prev == 0) ? NULL : experiential_images_25px[prev - 1];
     } else {
-        // Clear all image references when inactive
         *prev_image_ref = NULL;
-        *current_image_ref = NULL;
+    }
+
+    // Current hour experiential icon.
+    *current_image_ref = (current_experiential_icon == 0)
+        ? NULL
+        : experiential_images_50px[current_experiential_icon - 1];
+
+    // Next hour experiential icon.
+    if (hour < 11) {
+        uint8_t next = forecast_hours[hour + 1].experiential_icon;
+        *next_image_ref = (next == 0) ? NULL : experiential_images_25px[next - 1];
+    } else {
         *next_image_ref = NULL;
     }
 }

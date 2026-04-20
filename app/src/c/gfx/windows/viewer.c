@@ -28,6 +28,8 @@ enum {
   VIEW_PAGE_EXPERIENTIAL,
 };
 
+#define VIEW_PAGE_NONE 0xFF
+
 // Window and UI elements
 static Window* s_viewer_window;
 static TextLayer* prev_time_layer;
@@ -35,7 +37,8 @@ static TextLayer* current_time_layer;
 static TextLayer* next_time_layer;
 static TextLayer* current_text_layer;
 
-// Image references for the three positions
+// Image references for the three positions. Each active page populates these
+// via set_<page>_view(); the viewer then draws them through images_layer.
 static GDrawCommandImage* prev_image;
 static GDrawCommandImage* current_image;
 static GDrawCommandImage* next_image;
@@ -46,20 +49,17 @@ static Layer* images_layer;
 // View state
 static uint8_t hour_view = 0;
 static uint8_t page_view = VIEW_PAGE_CONDITIONS;
-
-// Animation state
-static bool animating = false;
-static bool transition_animating = false;
-static bool background_animating = false;
+static uint8_t active_page_view = VIEW_PAGE_NONE;  // Tracks which page's set_*_view(hour) is currently active.
 
 // Forward declarations
 static void update_view(uint8_t hour, uint8_t page);
+static void apply_page_content(uint8_t hour, uint8_t page);
 static GColor get_background_color_for_forecast(uint8_t hour, uint8_t page);
+static void draw_page_images(Layer* layer, GContext* ctx);
 
 // Helper function to check if animations are enabled
 static bool animations_enabled(void) {
 #ifdef PBL_PLATFORM_APLITE
-    // Animations are not supported on Aplite platform
     return false;
 #else
     ClaySettings* settings = prefs_get_settings();
@@ -67,69 +67,95 @@ static bool animations_enabled(void) {
 #endif
 }
 
-// Helper function to update only images and content text for animation, without updating time text
+// Returns the resting draw position for an image occupying the given slot,
+// accounting for the precipitation-axis special-cases. Image identity is the
+// source of truth, avoiding a duplicated (page, hour, precipitation) check.
+static GPoint resolve_image_pos(GDrawCommandImage* img, GPoint default_pos) {
+    if (img && img == conditions_get_axis_small_image()) {
+        return LAYOUT_AXIS_SM_POS;
+    }
+    if (img && img == conditions_get_axis_large_image()) {
+        return LAYOUT_AXIS_LG_POS;
+    }
+    return default_pos;
+}
+
+// Deactivate whichever page is currently active and clear image slots. After
+// this call, a new active page can populate slots without seeing stale
+// pointers from the previous page.
+static void deactivate_current_page(void) {
+    switch (active_page_view) {
+        case VIEW_PAGE_CONDITIONS:   set_conditions_view(-1);   break;
+        case VIEW_PAGE_AIRFLOW:      set_airflow_view(-1);      break;
+        case VIEW_PAGE_EXPERIENTIAL: set_experiential_view(-1); break;
+        default: break;
+    }
+    prev_image = NULL;
+    current_image = NULL;
+    next_image = NULL;
+    active_page_view = VIEW_PAGE_NONE;
+}
+
+// Applies the page-specific content: selects content text, activates the page
+// for the requested hour, and populates the shared image slots. Used by both
+// update_view (static swap) and update_images_and_content_for_animation
+// (mid-flight swap that should skip time-layer updates).
+static void apply_page_content(uint8_t hour, uint8_t page) {
+    const char* content_text = "";
+    switch (page) {
+        case VIEW_PAGE_CONDITIONS:
+            content_text = (hour == 0 && precipitation.precipitation_type > 0)
+                ? precipitation.precipitation_string
+                : forecast_hours[hour].conditions_string;
+            break;
+        case VIEW_PAGE_AIRFLOW:
+            content_text = forecast_hours[hour].airflow_string;
+            break;
+        case VIEW_PAGE_EXPERIENTIAL:
+            content_text = forecast_hours[hour].experiential_string;
+            break;
+        default: break;
+    }
+    text_layer_set_text(current_text_layer, content_text);
+
+    // Only touch other pages when actually switching pages. Re-activating the
+    // same page (hour change) just has it repopulate its slots.
+    if (active_page_view != page) {
+        deactivate_current_page();
+    }
+
+    switch (page) {
+        case VIEW_PAGE_CONDITIONS:   set_conditions_view(hour);   break;
+        case VIEW_PAGE_AIRFLOW:      set_airflow_view(hour);      break;
+        case VIEW_PAGE_EXPERIENTIAL: set_experiential_view(hour); break;
+        default: break;
+    }
+    active_page_view = page;
+
+    layer_mark_dirty(images_layer);
+}
+
+// Helper function to update only images and content text for animation,
+// without touching the time text (the animation system owns that).
 static void update_images_and_content_for_animation(uint8_t hour, uint8_t page) {
-  if (hour > 11) {
-    return;
-  }
-
-  if (page > 2) {
-    return;
-  }
-
-  // Update only the content text (the animation system will handle this)
-  const char* content_text = forecast_hours[hour].conditions_string;
-  if(page == VIEW_PAGE_AIRFLOW) {
-    content_text = forecast_hours[hour].airflow_string;
-  } else if(page == VIEW_PAGE_EXPERIENTIAL) {
-    content_text = forecast_hours[hour].experiential_string;
-  }
-
-  // For precipitation on conditions page at hour 0
-  if(page == VIEW_PAGE_CONDITIONS && hour == 0 && precipitation.precipitation_type > 0) {
-    content_text = precipitation.precipitation_string;
-  }
-
-  // Set the content text (but not time text)
-  text_layer_set_text(current_text_layer, content_text);
-
-  // Update page-specific image references
-  if(page == VIEW_PAGE_CONDITIONS) {
-    set_airflow_view(-1);
-    set_experiential_view(-1);
-    set_conditions_view(hour);
-  } else if (page == VIEW_PAGE_AIRFLOW) {
-    set_conditions_view(-1);
-    set_experiential_view(-1);
-    set_airflow_view(hour);
-  } else if (page == VIEW_PAGE_EXPERIENTIAL) {
-    set_conditions_view(-1);
-    set_airflow_view(-1);
-    set_experiential_view(hour);
-  }
-
-  // Mark the images layer as dirty to redraw the images
-  layer_mark_dirty(images_layer);
+    if (hour > 11 || page > 2) {
+        return;
+    }
+    apply_page_content(hour, page);
 }
 
 // Animation completion callbacks
 static void animation_complete_up(void) {
-    animating = false;
     VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Up animation completed, current hour: %d", hour_view);
-    // Update view after animation completes to ensure final state is correct
-    // Only call update_view once, not from both text and image animation completions
     update_view(hour_view, page_view);
 }
 
 static void animation_complete_down(void) {
-    animating = false;
     VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Down animation completed, current hour: %d", hour_view);
-    // Update view after animation completes to ensure final state is correct
-    // Only call update_view once, not from both text and image animation completions
     update_view(hour_view, page_view);
 }
 
-// Image animation completion callbacks (don't call update_view)
+// Image animation completion callbacks (don't call update_view).
 static void image_animation_complete_up(void) {
     VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Image up animation completed");
 }
@@ -137,104 +163,78 @@ static void image_animation_complete_down(void) {
     VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Image down animation completed");
 }
 
-// Transition animation completion callback
+// Transition / background completion callbacks. The animation system tracks its
+// own state; these just log so that `animation_is_busy()` is the single source
+// of truth for gating input.
 static void transition_animation_complete(void) {
-    transition_animating = false;
     VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Transition animation completed");
 }
-
-// Background animation completion callbacks
 static void background_animation_complete_hour(void) {
-    background_animating = false;
     VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Background hour animation completed");
 }
-
 static void background_animation_complete_page(void) {
-    background_animating = false;
     VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Background page animation completed");
 }
 
 /**
- * @brief Draws the three images (prev, current, next) at their respective positions
+ * @brief Draws the three images (prev, current, next) at their respective positions.
  */
-static void draw_page_images(GContext* ctx) {
+static void draw_page_images(Layer* layer, GContext* ctx) {
+    const bool anim = animations_enabled();
+
 #ifndef PBL_PLATFORM_APLITE
-    // Don't draw images if the animation system is hiding them (only applies when animations enabled)
-    // The animation system will handle drawing them progressively
-    if (animations_enabled() && image_animation_are_images_hidden()) {
+    // Don't draw static images while the image animation system is progressively
+    // revealing them; it composites them itself during that window.
+    if (anim && image_animation_are_images_hidden()) {
         return;
     }
 #endif
-    
-    // Get image positions (animated or normal)
+
     GPoint prev_pos, current_pos, next_pos;
-    if(animations_enabled()) {
+    if (anim) {
 #ifndef PBL_PLATFORM_APLITE
         transition_animation_get_image_positions(&prev_pos, &current_pos, &next_pos);
+#else
+        prev_pos = LAYOUT_PREV_ICON_POS;
+        current_pos = LAYOUT_CUR_ICON_POS;
+        next_pos = LAYOUT_NEXT_ICON_POS;
 #endif
     } else {
-        // Use normal layout positions when animations disabled
         prev_pos = LAYOUT_PREV_ICON_POS;
         current_pos = LAYOUT_CUR_ICON_POS;
         next_pos = LAYOUT_NEXT_ICON_POS;
     }
-    
-    // Draw previous image if available
+
     if (prev_image) {
-        // Check if this is the small axis image (precipitation case on conditions page, hour 1)
-        if (page_view == VIEW_PAGE_CONDITIONS && hour_view == 1 && precipitation.precipitation_type > 0) {
-            // Use special small axis position instead of normal prev position
-            gdraw_command_image_draw(ctx, prev_image, LAYOUT_AXIS_SM_POS);
-        } else {
-            gdraw_command_image_draw(ctx, prev_image, prev_pos);
-        }
+        gdraw_command_image_draw(ctx, prev_image, resolve_image_pos(prev_image, prev_pos));
     }
-
-    // Draw current image if available
     if (current_image) {
-        // Check if this is the axis image (precipitation case on conditions page, hour 0)
-        if (page_view == VIEW_PAGE_CONDITIONS && hour_view == 0 && precipitation.precipitation_type > 0) {
-            // Use special axis position instead of normal current position
-            gdraw_command_image_draw(ctx, current_image, LAYOUT_AXIS_LG_POS);
-        } else {
-            gdraw_command_image_draw(ctx, current_image, current_pos);
-        }
+        gdraw_command_image_draw(ctx, current_image, resolve_image_pos(current_image, current_pos));
     }
-
-    // Draw next image if available
     if (next_image) {
-        gdraw_command_image_draw(ctx, next_image, next_pos);
+        gdraw_command_image_draw(ctx, next_image, resolve_image_pos(next_image, next_pos));
     }
 }
 
 // Click handlers for navigation
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
-  if(animations_enabled()) {
-#ifndef PBL_PLATFORM_APLITE
-    if(animating || animation_system_is_any_active() || background_animating) {
-      VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Animation already active, ignoring up click");
-      return;
-    }
-#endif
+  if (animations_enabled() && animation_is_busy()) {
+    VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Animation busy, ignoring up click");
+    return;
   }
 
   if(hour_view > 0) {
     if(animations_enabled()) {
 #ifndef PBL_PLATFORM_APLITE
-      // Start background animation for hour transition (up direction slides from top)
-      background_animating = true;
+      // Hour transition: background slides from top, images/text cross-fade.
       GColor animation_color = get_background_color_for_forecast(hour_view - 1, page_view);
       background_animation_start(BACKGROUND_ANIMATION_FROM_TOP, animation_color, background_animation_complete_hour);
 
-      // Store current images for animation BEFORE updating view
       image_animation_store_current_images();
 
-      // Update hour and set new images/content for animation (but not time text)
       hour_view--;
       update_images_and_content_for_animation(hour_view, page_view);
 
-      // Start animation moving up
-      animating = true;
       const char* time_text = forecast_hours[hour_view].hour_string;
       const char* content_text = text_layer_get_text(current_text_layer);
 
@@ -243,37 +243,25 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
       image_animation_start(ANIMATION_DIRECTION_UP, hour_view, page_view, image_animation_complete_up);
 #endif
     } else {
-      // Non-animated mode: directly update hour and view
       hour_view--;
       update_view(hour_view, page_view);
-
-      // Simple background color change
-      GColor new_color = get_background_color_for_forecast(hour_view, page_view);
-      window_set_background_color(s_viewer_window, new_color);
+      window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour_view, page_view));
     }
     return;
   }
 
-  // Handle wrapping case (no animation)
-  hour_view--;
-  if(hour_view > 11) { // This check handles unsigned integer underflow when hour_view is 0
-    hour_view = 11;
-  }
+  // Wrap: UP at hour 0 jumps straight to hour 11 without animation. The jump is
+  // intentionally un-animated because scrolling 11 hours in the "up" direction
+  // would be disorienting; prefer a snap.
+  hour_view = 11;
   update_view(hour_view, page_view);
-
-  // Update background color for wrap
-  GColor new_color = get_background_color_for_forecast(hour_view, page_view);
-  window_set_background_color(s_viewer_window, new_color);
+  window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour_view, page_view));
 }
 
 static void prv_select_click_handler(ClickRecognizerRef recognizer, void *context) {
-  if(animations_enabled()) {
-#ifndef PBL_PLATFORM_APLITE
-    if(transition_animating || transition_animation_is_active() || background_animating) {
-      VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Transition already active, ignoring select click");
-      return;
-    }
-#endif
+  if (animations_enabled() && animation_is_busy()) {
+    VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Animation busy, ignoring select click");
+    return;
   }
 
   page_view++;
@@ -283,56 +271,38 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *contex
 
   if(animations_enabled()) {
 #ifndef PBL_PLATFORM_APLITE
-    // Start background animation for page transition (slide from right)
-    background_animating = true;
+    // Page transition: background slides from the right, images animate out/in.
     GColor animation_color = get_background_color_for_forecast(hour_view, page_view);
     background_animation_start(BACKGROUND_ANIMATION_FROM_RIGHT, animation_color, background_animation_complete_page);
 
-    // Start transition animation
-    transition_animating = true;
     transition_animation_start(transition_animation_complete);
 
-    // Update the image animation system with the new page
     image_animation_set_current_page(page_view);
     update_view(hour_view, page_view);
 #endif
   } else {
-    // Non-animated mode: directly update view and background color
     update_view(hour_view, page_view);
-
-    // Simple background color change
-    GColor new_color = get_background_color_for_forecast(hour_view, page_view);
-    window_set_background_color(s_viewer_window, new_color);
+    window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour_view, page_view));
   }
 }
 
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context) {
-  if(animations_enabled()) {
-#ifndef PBL_PLATFORM_APLITE
-    if(animating || animation_system_is_any_active() || background_animating) {
-      VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Animation already active, ignoring down click");
-      return;
-    }
-#endif
+  if (animations_enabled() && animation_is_busy()) {
+    VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Animation busy, ignoring down click");
+    return;
   }
 
   if(hour_view < 11) {
     if(animations_enabled()) {
 #ifndef PBL_PLATFORM_APLITE
-      // Start background animation for hour transition (down direction slides from bottom)
-      background_animating = true;
       GColor animation_color = get_background_color_for_forecast(hour_view + 1, page_view);
       background_animation_start(BACKGROUND_ANIMATION_FROM_BOTTOM, animation_color, background_animation_complete_hour);
 
-      // Store current images for animation BEFORE updating view
       image_animation_store_current_images();
 
-      // Update hour and set new images/content for animation (but not time text)
       hour_view++;
       update_images_and_content_for_animation(hour_view, page_view);
 
-      // Start animation moving down
-      animating = true;
       const char* time_text = forecast_hours[hour_view].hour_string;
       const char* content_text = text_layer_get_text(current_text_layer);
 
@@ -341,34 +311,23 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context)
       image_animation_start(ANIMATION_DIRECTION_DOWN, hour_view, page_view, image_animation_complete_down);
 #endif
     } else {
-      // Non-animated mode: directly update hour and view
       hour_view++;
       update_view(hour_view, page_view);
-
-      // Simple background color change
-      GColor new_color = get_background_color_for_forecast(hour_view, page_view);
-      window_set_background_color(s_viewer_window, new_color);
+      window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour_view, page_view));
     }
     return;
   }
 
-  // Handle wrapping case (no animation)
+  // Wrap: DOWN at hour 11 jumps to hour 0 without animation (see up-wrap comment).
   hour_view = 0;
   update_view(hour_view, page_view);
-
-  // Update background color for wrap
-  GColor new_color = get_background_color_for_forecast(hour_view, page_view);
-  window_set_background_color(s_viewer_window, new_color);
+  window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour_view, page_view));
 }
 
 static void prv_click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_select_click_handler);
   window_single_click_subscribe(BUTTON_ID_UP, prv_up_click_handler);
   window_single_click_subscribe(BUTTON_ID_DOWN, prv_down_click_handler);
-}
-
-static void main_layer_update_proc(Layer* layer, GContext* ctx) {
-  draw_page_images(ctx);
 }
 
 static void init_layers(Layer* window_layer) {
@@ -393,13 +352,10 @@ static void init_layers(Layer* window_layer) {
   text_layer_set_background_color(next_time_layer, GColorClear);
   text_layer_set_font(next_time_layer, fonts_get_system_font(LAYOUT_TIME_FONT));
   VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Time layers initialized");
-  // Register main layers for animation system (only if animations enabled)
   if(animations_enabled()) {
 #ifndef PBL_PLATFORM_APLITE
     text_animation_set_main_layers(current_time_layer, current_text_layer);
     text_animation_set_secondary_layers(prev_time_layer, next_time_layer);
-
-    // Register layers for transition animation system
     transition_animation_set_layers(current_time_layer, current_text_layer, prev_time_layer, next_time_layer);
 #endif
   }
@@ -413,30 +369,26 @@ static void init_layers(Layer* window_layer) {
   VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Initializing conditions layers");
   Layer* conditions_layer = init_conditions_layers(window_layer, &prev_image, &current_image, &next_image);
   layer_add_child(window_layer, conditions_layer);
-  
+
   VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Initializing airflow layers");
   Layer* air_layer = init_airflow_layers(window_layer, &prev_image, &current_image, &next_image);
   layer_add_child(window_layer, air_layer);
-  
+
   VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Initializing experiential layers");
   Layer* exp_layer = init_experiential_layers(window_layer, &prev_image, &current_image, &next_image);
   layer_add_child(window_layer, exp_layer);
   VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Image layers initialized");
 
-  // Create a separate layer for drawing images
   images_layer = layer_create(layer_get_bounds(window_layer));
-  layer_set_update_proc(images_layer, main_layer_update_proc);
+  layer_set_update_proc(images_layer, draw_page_images);
   layer_add_child(window_layer, images_layer);
   VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Images layer added to window layer");
-  // Set image layers for animation system AFTER images_layer is created (only if animations enabled)
+
   if(animations_enabled()) {
 #ifndef PBL_PLATFORM_APLITE
     text_animation_set_image_layers(images_layer, &prev_image, &current_image, &next_image);
-
-    // Set image layer for transition animation system
     transition_animation_set_image_layer(images_layer);
 
-    // Initialize animation system
     animation_system_init();
     text_animation_init(window_layer);
     transition_animation_init(window_layer);
@@ -447,135 +399,66 @@ static void init_layers(Layer* window_layer) {
 
 // Get background color based on forecast data and current page
 static GColor get_background_color_for_forecast(uint8_t hour, uint8_t page) {
-  // On black & white devices, always return white
   #ifdef PBL_BW
   return GColorWhite;
   #endif
-  
+
   if (hour > 11) {
-    return GColorWhite; // Default fallback
+    return GColorWhite;
   }
 
   switch (page) {
     case VIEW_PAGE_CONDITIONS:
-      // Use condition icon color, or precipitation color if applicable
       if (hour == 0 && precipitation.precipitation_type > 0) {
-        // For precipitation, use condition color 4 (snow) if cold, condition color 3 (rain) if warm
+        // Cold precipitation types (snow=3, sleet=4, hail=5) use the snow color;
+        // warm types use the rain color.
         if (precipitation.precipitation_type >= 3 && precipitation.precipitation_type <= 5) {
-          // Cold precipitation: snow (3), sleet (4), hail (5)
-          return get_condition_color(4); // Snow color
-        } else {
-          // Warm precipitation: rain (2), mixed (6), generic (1)
-          return get_condition_color(3); // Rain color
+          return get_condition_color(4);
         }
-      } else {
-        return get_condition_color(forecast_hours[hour].conditions_icon);
+        return get_condition_color(3);
       }
-      
-    case VIEW_PAGE_AIRFLOW:
-      // Use airflow intensity based on wind speed resource ID
-      // Extract speed level from resource ID: Slow=0, Med=1, Fast=2
-      {
-        uint32_t resource_id = forecast_hours[hour].wind_speed_resource_id;
-        int speed_level = 0;  // Default to slow
-        
-        if (resource_id >= RESOURCE_ID_WIND_SPEED_MED_N && resource_id <= RESOURCE_ID_WIND_SPEED_MED_NW) {
-          speed_level = 1;  // Medium
-        } else if (resource_id >= RESOURCE_ID_WIND_SPEED_FAST_N && resource_id <= RESOURCE_ID_WIND_SPEED_FAST_NW) {
-          speed_level = 2;  // Fast
-        }
-        
-        return get_airflow_color(speed_level);
+      return get_condition_color(forecast_hours[hour].conditions_icon);
+
+    case VIEW_PAGE_AIRFLOW: {
+      uint32_t resource_id = forecast_hours[hour].wind_speed_resource_id;
+      int speed_level = 0;
+      if (resource_id >= RESOURCE_ID_WIND_SPEED_MED_N && resource_id <= RESOURCE_ID_WIND_SPEED_MED_NW) {
+        speed_level = 1;
+      } else if (resource_id >= RESOURCE_ID_WIND_SPEED_FAST_N && resource_id <= RESOURCE_ID_WIND_SPEED_FAST_NW) {
+        speed_level = 2;
       }
-      
+      return get_airflow_color(speed_level);
+    }
+
     case VIEW_PAGE_EXPERIENTIAL:
-      // Use experiential icon color
       return get_experiential_color(forecast_hours[hour].experiential_icon);
-      
+
     default:
-      return GColorWhite; // Default fallback
+      return GColorWhite;
   }
 }
 
-//update the view for the given hour (index 0-11) and page enum
+// Updates the view for the given hour (0-11) and page.
 static void update_view(uint8_t hour, uint8_t page) {
-  if (hour > 11) {
+  if (hour > 11 || page > 2) {
     return;
   }
 
-  if (page > 2) {
-    return;
-  }
+  // Time layers: identical behaviour for animated and non-animated modes.
+  // Prev is blanked at the first hour, next is blanked at the last hour.
+  text_layer_set_text(prev_time_layer, (hour == 0)  ? "" : forecast_hours[hour - 1].hour_string);
+  text_layer_set_text(current_time_layer, forecast_hours[hour].hour_string);
+  text_layer_set_text(next_time_layer, (hour == 11) ? "" : forecast_hours[hour + 1].hour_string);
 
-  // Handle text layers with rudimentary logic when animations are disabled
-  if(animations_enabled()) {
-    // Animated mode: show all time layers normally
-    if(hour == 0) {
-      text_layer_set_text(prev_time_layer, "");
-    } else{
-      text_layer_set_text(prev_time_layer, forecast_hours[hour-1].hour_string);
-    }
-
-    text_layer_set_text(current_time_layer, forecast_hours[hour].hour_string);
-
-    if(hour == 11) {
-      text_layer_set_text(next_time_layer, "");
-    } else {
-      text_layer_set_text(next_time_layer, forecast_hours[hour+1].hour_string);
-    }
-  } else {
-    // Non-animated mode: rudimentary text handling - selectively hide elements at first/last hours
-    if(hour == 0) {
-      // At first hour, hide prev time layer
-      text_layer_set_text(prev_time_layer, "");
-      text_layer_set_text(current_time_layer, forecast_hours[hour].hour_string);
-      text_layer_set_text(next_time_layer, forecast_hours[hour+1].hour_string);
-    } else if(hour == 11) {
-      // At last hour, hide next time layer
-      text_layer_set_text(prev_time_layer, forecast_hours[hour-1].hour_string);
-      text_layer_set_text(current_time_layer, forecast_hours[hour].hour_string);
-      text_layer_set_text(next_time_layer, "");
-    } else {
-      // Show all time layers normally
-      text_layer_set_text(prev_time_layer, forecast_hours[hour-1].hour_string);
-      text_layer_set_text(current_time_layer, forecast_hours[hour].hour_string);
-      text_layer_set_text(next_time_layer, forecast_hours[hour+1].hour_string);
-    }
-  }
-
-  if(page == VIEW_PAGE_CONDITIONS) {
-    if(hour == 0 && precipitation.precipitation_type > 0) {
-      text_layer_set_text(current_text_layer, precipitation.precipitation_string);
-    } else {
-      text_layer_set_text(current_text_layer, forecast_hours[hour].conditions_string);
-    }
-    set_airflow_view(-1);
-    set_experiential_view(-1);
-    set_conditions_view(hour);
-  } else if (page == VIEW_PAGE_AIRFLOW) {
-    text_layer_set_text(current_text_layer, forecast_hours[hour].airflow_string);
-    set_conditions_view(-1);
-    set_experiential_view(-1);
-    set_airflow_view(hour);
-  } else if (page == VIEW_PAGE_EXPERIENTIAL) {
-    text_layer_set_text(current_text_layer, forecast_hours[hour].experiential_string);
-    set_conditions_view(-1);
-    set_airflow_view(-1);
-    set_experiential_view(hour);
-  }
-
-  // Mark the images layer as dirty to redraw the images
-  layer_mark_dirty(images_layer);
+  apply_page_content(hour, page);
 }
 
 static void prv_window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
-  
-  // Set initial background color based on current forecast data
+
   GColor initial_color = get_background_color_for_forecast(hour_view, page_view);
   window_set_background_color(window, initial_color);
 
-  // Initialize background animation first so it draws behind other layers (only if animations enabled)
   if(animations_enabled()) {
 #ifndef PBL_PLATFORM_APLITE
     background_animation_init(window_layer, window);
@@ -586,7 +469,6 @@ static void prv_window_load(Window *window) {
 }
 
 static void prv_window_unload(Window *window) {
-  // Clean up animation systems (only if animations were enabled)
   if(animations_enabled()) {
 #ifndef PBL_PLATFORM_APLITE
     background_animation_deinit();
@@ -595,22 +477,20 @@ static void prv_window_unload(Window *window) {
     animation_system_deinit();
 #endif
   }
-  
-  // Clean up any allocated images
-  // Note: prev_image/current_image/next_image are owned by page modules.
-  // They are deinitialized in their respective deinit functions (e.g., deinit_conditions_layers()).
-  // Do not destroy them here to avoid double-free when the app exits.
+
+  // Image pointers alias into per-page image arrays owned by the page modules.
+  // The arrays are freed by each page's deinit_*_layers(); just null the shared
+  // slots here so nothing dangles.
   prev_image = NULL;
   current_image = NULL;
   next_image = NULL;
+  active_page_view = VIEW_PAGE_NONE;
 
-  // Clean up the images layer
   if (images_layer) {
     layer_destroy(images_layer);
     images_layer = NULL;
   }
 
-  // Clean up text layers
   if (prev_time_layer) {
     text_layer_destroy(prev_time_layer);
     prev_time_layer = NULL;
@@ -635,12 +515,11 @@ static void prv_window_unload(Window *window) {
 
 // Public API implementation
 Window* viewer_window_create(void) {
-  // Initialize image references to NULL
   prev_image = NULL;
   current_image = NULL;
   next_image = NULL;
-  
-  // Initialize animation subsystems (only if animations enabled)
+  active_page_view = VIEW_PAGE_NONE;
+
   if(animations_enabled()) {
 #ifndef PBL_PLATFORM_APLITE
     text_animation_init_system();
@@ -661,7 +540,6 @@ Window* viewer_window_create(void) {
 
 void viewer_window_destroy(Window* window) {
   if (window && window == s_viewer_window) {
-    // Clean up animation subsystems (only if animations were enabled)
     if(animations_enabled()) {
 #ifndef PBL_PLATFORM_APLITE
       background_animation_deinit_system();

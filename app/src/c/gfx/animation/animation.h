@@ -39,4 +39,11 @@ AnimationProgress animation_transition_out_and_back_curve(AnimationProgress line
 
 // Common animation utility functions
 bool animation_system_is_any_active(void);
-void animation_system_stop_all(void); 
+void animation_system_stop_all(void);
+
+/**
+ * @brief Returns true iff any animation subsystem (text/image, transition, or
+ *        background) is currently running. Single source of truth for gating
+ *        user input during animations.
+ */
+bool animation_is_busy(void);

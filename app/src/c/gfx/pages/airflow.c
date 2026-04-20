@@ -3,41 +3,41 @@
 #include "../resources.h"
 #include "../../utils/weather.h"
 
-static uint32_t frame_ms = 33;
-
-static AppTimer* frame_timer;
-static AppTimer* timeout_timer;
-
 #define HIGH_WIND_SPEED 75
 #define ANEMOMETER_TIMEOUT_MS (60 * 1000)  // 1 minute in milliseconds
 
-//182 is a single degree of rotation, times rotations per frame
+// 182 is a single degree of rotation, times rotations per frame
 #define ANEMOMETER_SPEED_MIN 182*6
 #define ANEMOMETER_SPEED_MAX 182*30
+
+// Anemometer geometry (drawn in layer-local coordinates)
+#define ANEMO_RADIUS 30
+#define ANEMO_CUP_SIZE 15
+#define ANEMO_DIAM (ANEMO_RADIUS * 2)
+
+static const uint32_t frame_ms = 33;
+
+static AppTimer* frame_timer;
+static AppTimer* timeout_timer;
 
 static int32_t anemometer_speed = ANEMOMETER_SPEED_MIN;
 
 static Layer* airflow_layer;
 static int32_t current_angle = 0;
 static bool is_active = false;
-static bool was_active = false;  // Track if we were active before, to know if we own the images
 static uint8_t selected_hour = 0;
 
-// Image references passed from main.c
+// Image references passed from viewer.c
 static GDrawCommandImage** prev_image_ref;
 static GDrawCommandImage** current_image_ref;
 static GDrawCommandImage** next_image_ref;
-
-// Anemometer configuration
-static int radius = 30;        // Size of the anemometer
-static int cup_size = 15;      // Size of the cups ( ͡° ͜ʖ ͡°)
 
 // Wind vane and wind speed configuration
 static GDrawCommandImage** wind_vane_images;      // Array of 8 directional wind vanes
 static GDrawCommandImage** wind_speed_images;     // Array of 24 wind speed images (3 speeds × 8 directions)
 
-static void frame_update();
-static void update_icons();
+static void frame_update(void* data);
+static void update_icons(void);
 
 // Helper function to get wind speed image index from resource ID
 static int get_wind_speed_image_index(uint32_t resource_id) {
@@ -55,103 +55,67 @@ static int get_wind_speed_image_index(uint32_t resource_id) {
     return -1;
 }
 
-//timeout functions for if view doesn't change for a while
-//stops the animation, hopefully saving battery
-static void timeout_callback();
-static void reset_timeout();
+// Timeout functions for if view doesn't change for a while
+// stops the animation, hopefully saving battery
+static void timeout_callback(void* data);
+static void reset_timeout(void);
 
 void set_airflow_view(int hour) {
-    was_active = is_active;  // Remember previous state
     is_active = (hour >= 0);
     selected_hour = hour;
 
-    //update icons
     update_icons();
-    
-    // Update image references
+
+    // Update image references (viewer pre-clears slots on page switch; we only
+    // need to populate them when active).
     if (is_active) {
-        // Get the wind speed icon for previous hour if available
+        // Previous hour wind-speed icon, if any.
         if (hour > 0) {
             uint32_t prev_resource_id = forecast_hours[hour-1].wind_speed_resource_id;
             int prev_index = get_wind_speed_image_index(prev_resource_id);
-            if (prev_index >= 0 && wind_speed_images[prev_index]) {
-                *prev_image_ref = wind_speed_images[prev_index];
-            } else {
-                *prev_image_ref = NULL;
-            }
+            *prev_image_ref = (prev_index >= 0) ? wind_speed_images[prev_index] : NULL;
         } else {
-            // Destroy existing image before setting to NULL
-            if (was_active && *prev_image_ref) {
-                // Don't destroy - it's from our array
-            }
             *prev_image_ref = NULL;
         }
 
-        // Current image is the wind vane for this hour's direction
+        // Current image is the wind vane for this hour's direction.
         int8_t vane_dir = forecast_hours[hour].wind_direction;
-        if (vane_dir >= 0 && vane_dir < 8 && wind_vane_images[vane_dir]) {
-            *current_image_ref = wind_vane_images[vane_dir];
-        } else {
-            *current_image_ref = NULL;
-        }
-        
-        // Get the wind speed icon for next hour if available
+        *current_image_ref = (vane_dir >= 0 && vane_dir < 8) ? wind_vane_images[vane_dir] : NULL;
+
+        // Next hour wind-speed icon, if any.
         if (hour < 11) {
             uint32_t next_resource_id = forecast_hours[hour+1].wind_speed_resource_id;
             int next_index = get_wind_speed_image_index(next_resource_id);
-            if (next_index >= 0 && wind_speed_images[next_index]) {
-                *next_image_ref = wind_speed_images[next_index];
-            } else {
-                *next_image_ref = NULL;
-            }
+            *next_image_ref = (next_index >= 0) ? wind_speed_images[next_index] : NULL;
         } else {
-            // Destroy existing image before setting to NULL
-            if (was_active && *next_image_ref) {
-                // Don't destroy - it's from our array
-            }
             *next_image_ref = NULL;
         }
-    } else {
-        // Clear all image references when inactive
-        // Images are owned by the init arrays, not by individual pages
-        // So we just set pointers to NULL without destroying
-        *prev_image_ref = NULL;
-        *current_image_ref = NULL;
-        *next_image_ref = NULL;
     }
-    
-    // If becoming active, start the frame timer and timeout
+
     if (is_active && !frame_timer) {
-        frame_timer = app_timer_register(frame_ms, (AppTimerCallback) frame_update, NULL);
-        reset_timeout();  // Start the timeout timer
-    }
-    // If becoming inactive, cancel both timers
-    else if (!is_active && frame_timer) {
+        frame_timer = app_timer_register(frame_ms, frame_update, NULL);
+        reset_timeout();
+    } else if (!is_active && frame_timer) {
         app_timer_cancel(frame_timer);
         frame_timer = NULL;
         if (timeout_timer) {
             app_timer_cancel(timeout_timer);
             timeout_timer = NULL;
         }
-    }
-    // If already active but view changed, reset the timeout
-    else if (is_active && frame_timer) {
-        reset_timeout();  // Reset the timeout on view change
+    } else if (is_active && frame_timer) {
+        reset_timeout();
     }
 }
 
-static void update_icons() {
+static void update_icons(void) {
     if(!is_active) {
         return;
     }
 
-    // Calculate proportional anemometer speed, but clamp to min/max
+    // Calculate proportional anemometer speed, but clamp to min/max.
     int wind_speed = forecast_hours[selected_hour].wind_speed;
     int range = ANEMOMETER_SPEED_MAX - ANEMOMETER_SPEED_MIN;
-    int speed = ANEMOMETER_SPEED_MIN;
-    if (HIGH_WIND_SPEED > 0) {
-        speed = (wind_speed * range) / HIGH_WIND_SPEED + ANEMOMETER_SPEED_MIN;
-    }
+    int speed = (wind_speed * range) / HIGH_WIND_SPEED + ANEMOMETER_SPEED_MIN;
     if (speed > ANEMOMETER_SPEED_MAX) speed = ANEMOMETER_SPEED_MAX;
     if (speed < ANEMOMETER_SPEED_MIN) speed = ANEMOMETER_SPEED_MIN;
     anemometer_speed = speed;
@@ -161,51 +125,55 @@ void reset_anemometer_timeout(void) {
     reset_timeout();
 }
 
-static void timeout_callback() {
-    // Stop the anemometer animation by canceling the frame timer
+static void timeout_callback(void* data) {
     if (frame_timer) {
         app_timer_cancel(frame_timer);
         frame_timer = NULL;
     }
     timeout_timer = NULL;
-    
-    // Mark the layer dirty to redraw without animation
+
     if (airflow_layer) {
         layer_mark_dirty(airflow_layer);
     }
 }
 
-static void reset_timeout() {
-    // Cancel existing timeout timer if it exists
+static void reset_timeout(void) {
     if (timeout_timer) {
         app_timer_cancel(timeout_timer);
         timeout_timer = NULL;
     }
-    
-    // Start a new timeout timer only if we're active and animating
+
     if (is_active && frame_timer) {
-        timeout_timer = app_timer_register(ANEMOMETER_TIMEOUT_MS, (AppTimerCallback) timeout_callback, NULL);
+        timeout_timer = app_timer_register(ANEMOMETER_TIMEOUT_MS, timeout_callback, NULL);
     }
 }
 
-static void frame_update() {
-    // Only update if we're active
+static void frame_update(void* data) {
     if (!is_active) return;
-    
+
     current_angle += anemometer_speed;
     if(current_angle >= TRIG_MAX_ANGLE) {
         current_angle -= TRIG_MAX_ANGLE;
     }
     layer_mark_dirty(airflow_layer);
-    frame_timer = app_timer_register(frame_ms, (AppTimerCallback) frame_update, NULL);
+    frame_timer = app_timer_register(frame_ms, frame_update, NULL);
 }
 
 Layer* init_airflow_layers(Layer* window_layer, GDrawCommandImage** prev_image, GDrawCommandImage** current_image, GDrawCommandImage** next_image) {
-    airflow_layer = layer_create(layer_get_bounds(window_layer));
+    // Size the layer to exactly the anemometer bounding box. The wind vane icon
+    // lives in the 50x50 current-icon slot; the anemometer is a 60x60 disc
+    // centred on that slot and is the only thing this layer draws. Keeping the
+    // layer small means frame_update()'s 30fps mark_dirty invalidates a 60x60
+    // region instead of the full screen.
+    GPoint icon_origin = LAYOUT_CUR_ICON_POS;
+    int cx = icon_origin.x + LAYOUT_ICON_LG / 2;
+    int cy = icon_origin.y + LAYOUT_ICON_LG / 2;
+    GRect anemo_frame = GRect(cx - ANEMO_RADIUS, cy - ANEMO_RADIUS, ANEMO_DIAM, ANEMO_DIAM);
+
+    airflow_layer = layer_create(anemo_frame);
     layer_set_update_proc(airflow_layer, draw_airflow);
     layer_add_child(window_layer, airflow_layer);
 
-    // Store the image references
     prev_image_ref = prev_image;
     current_image_ref = current_image;
     next_image_ref = next_image;
@@ -217,7 +185,7 @@ Layer* init_airflow_layers(Layer* window_layer, GDrawCommandImage** prev_image, 
     return airflow_layer;
 }
 
-void deinit_airflow_layers() {
+void deinit_airflow_layers(void) {
     // Clean up wind vane images
     if (wind_vane_images) {
         deinit_wind_vane_images(wind_vane_images);
@@ -252,52 +220,41 @@ void draw_airflow(Layer* layer, GContext* ctx) {
         return;
     }
 
-    // Use layout positioning for the wind vane center
-    GPoint center = LAYOUT_CUR_ICON_POS;
-    center.x += LAYOUT_ICON_LG / 2;
-    center.y += LAYOUT_ICON_LG / 2;
-    
-    // Set up the drawing style
+    // Layer is sized to ANEMO_DIAM x ANEMO_DIAM; draw in layer-local coords.
+    GRect bounds = layer_get_bounds(layer);
+    GPoint center = GPoint(bounds.origin.x + ANEMO_RADIUS, bounds.origin.y + ANEMO_RADIUS);
+
     graphics_context_set_stroke_width(ctx, 1);
     graphics_context_set_stroke_color(ctx, GColorBlack);
     graphics_context_set_fill_color(ctx, GColorWhite);
-    
-    // Create a rect for the anemometer circle
+
     GRect anemometer_rect = GRect(
-        center.x - radius,
-        center.y - radius,
-        radius * 2,
-        radius * 2
+        center.x - ANEMO_RADIUS,
+        center.y - ANEMO_RADIUS,
+        ANEMO_DIAM,
+        ANEMO_DIAM
     );
-    
+
     // Draw three lines with semicircles at 120 degree intervals
     for(int i = 0; i < 3; i++) {
         int32_t base_angle = current_angle + (i * TRIG_MAX_ANGLE / 3);
-        
-        // Calculate end point on the perimeter
+
         GPoint end = gpoint_from_polar(anemometer_rect, GOvalScaleModeFitCircle, base_angle);
-        
-        // Calculate cup position (moved inward by half cup size)
+
         GPoint cup_center = {
-            .x = center.x + ((end.x - center.x) * (radius - cup_size/2)) / radius,
-            .y = center.y + ((end.y - center.y) * (radius - cup_size/2)) / radius
+            .x = center.x + ((end.x - center.x) * (ANEMO_RADIUS - ANEMO_CUP_SIZE/2)) / ANEMO_RADIUS,
+            .y = center.y + ((end.y - center.y) * (ANEMO_RADIUS - ANEMO_CUP_SIZE/2)) / ANEMO_RADIUS
         };
-        
-        // Draw semicircle at the cup position
+
         GRect circle_rect = GRect(
-            cup_center.x - cup_size/2,
-            cup_center.y - cup_size/2,
-            cup_size,
-            cup_size
+            cup_center.x - ANEMO_CUP_SIZE/2,
+            cup_center.y - ANEMO_CUP_SIZE/2,
+            ANEMO_CUP_SIZE,
+            ANEMO_CUP_SIZE
         );
-        
-        // Fill the cup with white
-        graphics_fill_radial(ctx, circle_rect, GOvalScaleModeFitCircle, cup_size/2, base_angle, base_angle + TRIG_MAX_ANGLE/2);
-        
-        // Draw the line from center to perimeter
+
+        graphics_fill_radial(ctx, circle_rect, GOvalScaleModeFitCircle, ANEMO_CUP_SIZE/2, base_angle, base_angle + TRIG_MAX_ANGLE/2);
         graphics_draw_line(ctx, center, end);
-        
-        // Draw the outline of the cup
         graphics_draw_arc(ctx, circle_rect, GOvalScaleModeFitCircle, base_angle, base_angle + TRIG_MAX_ANGLE/2);
     }
-} 
+}

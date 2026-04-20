@@ -1,6 +1,8 @@
 #include "animation.h"
 #include "text_animation.h"
 #include "image_animation.h"
+#include "transition.h"
+#include "background_animation.h"
 
 // Global animation system state
 static bool s_animation_system_initialized = false;
@@ -87,8 +89,18 @@ bool animation_system_is_any_active(void) {
     return text_animation_is_active() || image_animation_is_active();
 }
 
+bool animation_is_busy(void) {
+#ifdef PBL_PLATFORM_APLITE
+    return false;
+#else
+    return animation_system_is_any_active()
+        || transition_animation_is_active()
+        || background_animation_is_active();
+#endif
+}
+
 void animation_system_stop_all(void) {
     text_animation_stop();
     image_animation_stop();
     ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "All animations stopped");
-} 
+}
