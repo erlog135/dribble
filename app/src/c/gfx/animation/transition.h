@@ -18,12 +18,9 @@ typedef struct {
     TextLayer* current_text_layer;
     TextLayer* prev_time_layer;
     TextLayer* next_time_layer;
-    
-    // Image references (not owned by transition system)
+
+    // Image layer reference (not owned by transition system)
     Layer* images_layer;
-    GDrawCommandImage** prev_image_ref;
-    GDrawCommandImage** current_image_ref;
-    GDrawCommandImage** next_image_ref;
     
     // Animation objects
     Animation* spawn_animation;
@@ -64,16 +61,10 @@ void transition_animation_set_layers(TextLayer* current_time_layer,
                                    TextLayer* next_time_layer);
 
 /**
- * Set the image layers that will be animated during transitions
+ * Set the image layer that will be animated during transitions
  * @param images_layer The layer that draws the images
- * @param prev_image_ref Reference to the prev image pointer
- * @param current_image_ref Reference to the current image pointer
- * @param next_image_ref Reference to the next image pointer
  */
-void transition_animation_set_image_layers(Layer* images_layer, 
-                                         GDrawCommandImage** prev_image_ref,
-                                         GDrawCommandImage** current_image_ref, 
-                                         GDrawCommandImage** next_image_ref);
+void transition_animation_set_image_layer(Layer* images_layer);
 
 /**
  * Clean up the transition animation system

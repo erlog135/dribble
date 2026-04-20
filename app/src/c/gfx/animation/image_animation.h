@@ -8,12 +8,13 @@
  * since the25s don't correspond exactly with their 50x locations,
  * an offset should be applied during a KMAnimation on the 50px image destination
  * to somewhat cleanly transition one to the other.
- * 
+ *
  * when going back from 5025x, these should be halved and negated
  * when applied to the 25px destination position to counteract them
  * already being offset.
+ *
+ * Defined `static const` in image_animation.c; not exported.
  */
-extern GPoint experiential_image_offsets[];
 
 typedef struct {
     AnimationState state;

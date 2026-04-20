@@ -57,18 +57,3 @@ uint8_t viewer_get_current_page(void);
  * @param page Page type to set (0=conditions, 1=airflow, 2=experiential)
  */
 void viewer_set_current_view(uint8_t hour, uint8_t page);
-
-/**
- * @brief Callback function type for data requests
- * 
- * This callback is called when the viewer needs additional data,
- * typically when the user tries to navigate beyond hour 0.
- */
-typedef void (*ViewerDataRequestCallback)(void);
-
-/**
- * @brief Sets the data request callback
- * 
- * @param callback Function to call when data is needed
- */
-void viewer_set_data_request_callback(ViewerDataRequestCallback callback);

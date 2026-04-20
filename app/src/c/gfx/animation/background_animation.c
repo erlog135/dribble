@@ -12,9 +12,10 @@ typedef struct {
     // Animation layer and rectangle (used on non-round screens)
     Layer* animation_layer;
     GRect rect_bounds;
-    
-    // Property animation
-    PropertyAnimation* rect_animation;
+
+    // Active animation (plain Animation + custom update; no PropertyAnimation
+    // needed since the custom update fully computes each frame)
+    Animation* rect_animation;
     
     // Completion callback
     void (*on_complete)(void);
@@ -234,26 +235,23 @@ void background_animation_start(BackgroundAnimationDirection direction,
 
     // Show the animation layer
     layer_set_hidden(s_context.animation_layer, false);
-    
-    // Create and configure property animation
-    s_context.rect_animation = property_animation_create_layer_frame(s_context.animation_layer, NULL, NULL);
-    
-    Animation* animation = property_animation_get_animation(s_context.rect_animation);
-    animation_set_duration(animation, ANIMATION_DURATION_MS);
-    animation_set_custom_curve(animation, custom_pronounced_ease_curve);
-    
-    // Set custom update and completion handlers
+
+    // Create a plain Animation (no PropertyAnimation needed: our custom
+    // .update callback computes the frame directly from s_context state).
+    s_context.rect_animation = animation_create();
+    animation_set_duration(s_context.rect_animation, ANIMATION_DURATION_MS);
+    animation_set_custom_curve(s_context.rect_animation, custom_pronounced_ease_curve);
+
     static const AnimationImplementation animation_implementation = {
         .update = background_animation_update,
     };
-    animation_set_implementation(animation, &animation_implementation);
-    
-    animation_set_handlers(animation, (AnimationHandlers) {
+    animation_set_implementation(s_context.rect_animation, &animation_implementation);
+
+    animation_set_handlers(s_context.rect_animation, (AnimationHandlers) {
         .stopped = background_animation_complete,
     }, NULL);
-    
-    // Start the animation
-    animation_schedule(animation);
+
+    animation_schedule(s_context.rect_animation);
 }
 
 bool background_animation_is_active(void) {
@@ -265,9 +263,8 @@ void background_animation_stop(void) {
         ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Stopping background animation");
         
         if (s_context.rect_animation) {
-            Animation* animation = property_animation_get_animation(s_context.rect_animation);
-            animation_unschedule(animation);
-            property_animation_destroy(s_context.rect_animation);
+            animation_unschedule(s_context.rect_animation);
+            animation_destroy(s_context.rect_animation);
             s_context.rect_animation = NULL;
         }
         

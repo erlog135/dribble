@@ -22,10 +22,15 @@ void prefs_init(void) {
 }
 
 void prefs_load(void) {
-    // Load the default settings
+    // Load defaults first; keep them unless a full struct is recovered from
+    // persistent storage. Partial/short reads (e.g. after changing the
+    // struct layout) would otherwise leave some fields uninitialized.
     prv_default_settings();
-    // Read settings from persistent storage, if they exist
-    persist_read_data(SETTINGS_KEY, &settings, sizeof(settings));
+
+    int read = persist_read_data(SETTINGS_KEY, &settings, sizeof(settings));
+    if (read != (int)sizeof(settings)) {
+        prv_default_settings();
+    }
 }
 
 void prefs_save(void) {

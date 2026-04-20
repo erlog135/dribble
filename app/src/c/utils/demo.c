@@ -1,5 +1,5 @@
 #include "demo.h"
-#include <stdlib.h>
+#include "msgproc.h"
 #include <string.h>
 
 // Preset data structure for each forecast hour
@@ -118,44 +118,9 @@ void demo_populate_precipitation(void) {
     
     // Get the temperature from the first forecast hour
     char temp_line[MAX_STRING_LENGTH];
-    strncpy(temp_line, forecast_hours[0].conditions_string, 
+    strncpy(temp_line, forecast_hours[0].conditions_string,
             strchr(forecast_hours[0].conditions_string, '\n') - forecast_hours[0].conditions_string);
     temp_line[strchr(forecast_hours[0].conditions_string, '\n') - forecast_hours[0].conditions_string] = '\0';
-    
-    // Format precipitation string based on current intensity
-    if (precipitation.precipitation_intensity[0] == 0) {
-        // No precipitation is happening now
-        // Find first non-zero intensity
-        int start = 0;
-        while (start < PRECIPITATION_INTERVALS && precipitation.precipitation_intensity[start] == 0) {
-            start++;
-        }
-        
-        if (start < PRECIPITATION_INTERVALS) {
-            // Precipitation is coming later
-            int minutes_until = start * 5;
-            snprintf(precipitation.precipitation_string, MAX_STRING_LENGTH - 1,
-                    "%s\n%s\nin %dm", temp_line, get_precipitation_string(precipitation.precipitation_type), minutes_until);
-        } else {
-            // No precipitation
-            snprintf(precipitation.precipitation_string, MAX_STRING_LENGTH - 1,
-                    "%s\nNo precipitation", temp_line);
-        }
-    } else {
-        // Precipitation is happening now, find when it ends
-        int end = 0;
-        while (end < PRECIPITATION_INTERVALS && precipitation.precipitation_intensity[end] > 0) {
-            end++;
-        }
-        end--; // Move back to last non-zero intensity
-        
-        int duration = (end + 1) * 5; // Duration in minutes
-        if (duration > 60) {
-            snprintf(precipitation.precipitation_string, MAX_STRING_LENGTH - 1,
-                    "%s\n%s\nfor 1h+", temp_line, get_precipitation_string(precipitation.precipitation_type));
-        } else {
-            snprintf(precipitation.precipitation_string, MAX_STRING_LENGTH - 1,
-                    "%s\n%s\nfor %dm", temp_line, get_precipitation_string(precipitation.precipitation_type), duration);
-        }
-    }
+
+    format_precipitation_string(&precipitation, temp_line);
 } 

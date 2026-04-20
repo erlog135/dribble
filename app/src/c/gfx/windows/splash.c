@@ -6,8 +6,7 @@
 #include "../../utils/demo.h"
 #include "../../utils/prefs.h"
 
-// Window and UI elements
-static Window* s_splash_window;
+// Window and UI elements (window itself is owned by main.c)
 static Layer* image_layer;
 static TextLayer* status_text_layer;
 
@@ -17,7 +16,6 @@ static char status_text[64] = "Loading...";
 
 // Loading state
 static bool loading_in_progress = false;
-static uint8_t received_hours = 0;
 
 // Callbacks
 static SplashCompletionCallback completion_callback = NULL;
@@ -86,8 +84,7 @@ static void handle_data_response(DictionaryIterator *iter) {
     if (hour_data_tuple) {
         // Unpack all 12 hours from the 120-byte binary blob
         unpack_all_hours((uint8_t*)hour_data_tuple->value->data, forecast_hours);
-        received_hours = 12;
-        
+
         splash_set_status_text("Loading...");
         UTIL_LOG(APP_LOG_LEVEL_DEBUG, "All hourly data received (120 bytes), waiting for precipitation data");
     }
@@ -165,19 +162,18 @@ static void splash_window_unload(Window *window) {
 
 // Public API implementation
 Window* splash_window_create(void) {
-    s_splash_window = window_create();
-    window_set_window_handlers(s_splash_window, (WindowHandlers) {
+    Window* window = window_create();
+    window_set_window_handlers(window, (WindowHandlers) {
         .load = splash_window_load,
         .unload = splash_window_unload,
     });
 
-    return s_splash_window;
+    return window;
 }
 
 void splash_window_destroy(Window* window) {
-    if (window && window == s_splash_window) {
+    if (window) {
         window_destroy(window);
-        s_splash_window = NULL;
     }
 }
 
@@ -211,7 +207,6 @@ void splash_start_loading(void) {
     }
 
     loading_in_progress = true;
-    received_hours = 0;
 
     // In demo mode, load demo data immediately
     if (DEMO_MODE) {

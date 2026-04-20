@@ -70,10 +70,9 @@ static void text_animation_stopped_handler(Animation* animation, bool finished, 
 }
 
 void text_animation_init_system(void) {
-    // Initialize image animation system
-    image_animation_init_system();
-    
-    // Initialize state
+    // Note: image_animation_init_system() is handled by animation_system_init()
+    // to avoid double-initialization.
+
     s_text_animation_context.state = ANIMATION_STATE_IDLE;
     s_text_animation_context.spawn_animation = NULL;
     s_text_animation_context.incoming_time_animation = NULL;
@@ -152,9 +151,7 @@ void text_animation_deinit(void) {
 }
 
 void text_animation_deinit_system(void) {
-    // Clean up image animation system
-    image_animation_deinit_system();
-    
+    // Note: image_animation_deinit_system() is handled by animation_system_deinit().
     ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Text animation subsystem deinitialized");
 }
 

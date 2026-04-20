@@ -80,7 +80,7 @@ typedef struct Precipitation{
 extern ForecastHour forecast_hours[12];
 
 //next hour precipitation
-Precipitation precipitation;
+extern Precipitation precipitation;
 
 
 // Function declarations

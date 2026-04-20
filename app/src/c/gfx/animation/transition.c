@@ -147,11 +147,8 @@ void transition_animation_init_system(void) {
     s_transition_animation_context.image_progress_animation = NULL;
     s_transition_animation_context.on_complete = NULL;
     
-    // Initialize image references
+    // Initialize image layer reference
     s_transition_animation_context.images_layer = NULL;
-    s_transition_animation_context.prev_image_ref = NULL;
-    s_transition_animation_context.current_image_ref = NULL;
-    s_transition_animation_context.next_image_ref = NULL;
     
     // Initialize timers
     s_transition_animation_context.text_animation_delay_timer = NULL;
@@ -180,17 +177,11 @@ void transition_animation_set_layers(TextLayer* current_time_layer,
             (void*)prev_time_layer, (void*)next_time_layer);
 }
 
-void transition_animation_set_image_layers(Layer* images_layer, 
-                                         GDrawCommandImage** prev_image_ref,
-                                         GDrawCommandImage** current_image_ref, 
-                                         GDrawCommandImage** next_image_ref) {
+void transition_animation_set_image_layer(Layer* images_layer) {
     s_transition_animation_context.images_layer = images_layer;
-    s_transition_animation_context.prev_image_ref = prev_image_ref;
-    s_transition_animation_context.current_image_ref = current_image_ref;
-    s_transition_animation_context.next_image_ref = next_image_ref;
-    
-    ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Transition animation image layers set: layer=%p, prev_ref=%p, current_ref=%p, next_ref=%p", 
-            (void*)images_layer, (void*)prev_image_ref, (void*)current_image_ref, (void*)next_image_ref);
+
+    ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Transition animation image layer set: layer=%p",
+            (void*)images_layer);
 }
 
 void transition_animation_deinit(void) {
@@ -257,11 +248,6 @@ void transition_animation_start(void (*on_complete)(void)) {
                                next_time_bounds.origin.y,
                                next_time_bounds.size.w,
                                next_time_bounds.size.h);
-
-    // Calculate image slide-in positions (start from right side of screen)
-    GRect prev_image_start     = GRect(LAYOUT_W + 20, LAYOUT_PREV_ICON_POS.y, LAYOUT_ICON_SM, LAYOUT_ICON_SM);
-    GRect current_image_start  = GRect(LAYOUT_W + 20, LAYOUT_CUR_ICON_POS.y,  LAYOUT_ICON_LG, LAYOUT_ICON_LG);
-    GRect next_image_start     = GRect(LAYOUT_W + 20, LAYOUT_NEXT_ICON_POS.y, LAYOUT_ICON_SM, LAYOUT_ICON_SM);
 
     ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Creating transition animations - hop left by 10 pixels");
 

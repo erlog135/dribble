@@ -220,11 +220,48 @@ void unpack_hour_package(HourPackage weather_data, ForecastHour* forecast_hour) 
     forecast_hour->experiential_string[MAX_STRING_LENGTH - 1] = '\0';
 }
 
+void format_precipitation_string(Precipitation* precipitation, const char* temp_line) {
+    const uint8_t type = precipitation->precipitation_type;
+    const uint8_t* intensity = precipitation->precipitation_intensity;
+
+    if (intensity[0] == 0) {
+        // No precipitation right now; find first non-zero interval
+        int start = 0;
+        while (start < PRECIPITATION_INTERVALS && intensity[start] == 0) {
+            start++;
+        }
+
+        if (start < PRECIPITATION_INTERVALS) {
+            int minutes_until = start * 5;
+            snprintf(precipitation->precipitation_string, MAX_STRING_LENGTH - 1,
+                    "%s\n%s\nin %dm", temp_line, get_precipitation_string(type), minutes_until);
+        } else {
+            snprintf(precipitation->precipitation_string, MAX_STRING_LENGTH - 1,
+                    "%s\nNo precipitation", temp_line);
+        }
+    } else {
+        // Precipitation active now; find when it ends
+        int end = 0;
+        while (end < PRECIPITATION_INTERVALS && intensity[end] > 0) {
+            end++;
+        }
+        end--;
+
+        int duration = (end + 1) * 5;
+        if (duration > 60) {
+            snprintf(precipitation->precipitation_string, MAX_STRING_LENGTH - 1,
+                    "%s\n%s\nfor 1h+", temp_line, get_precipitation_string(type));
+        } else {
+            snprintf(precipitation->precipitation_string, MAX_STRING_LENGTH - 1,
+                    "%s\n%s\nfor %dm", temp_line, get_precipitation_string(type), duration);
+        }
+    }
+    precipitation->precipitation_string[MAX_STRING_LENGTH - 1] = '\0';
+}
+
 void unpack_precipitation(PrecipitationPackage weather_data, Precipitation* precipitation) {
     // First byte: precipitation type (uint8)
-    uint8_t type = weather_data[0];
-
-    precipitation->precipitation_type = type;
+    precipitation->precipitation_type = weather_data[0];
 
     // Next 6 bytes: 24 precipitation intensity values (2 bits each)
     // Each byte contains 4 intensity values
@@ -233,7 +270,6 @@ void unpack_precipitation(PrecipitationPackage weather_data, Precipitation* prec
         for (int j = 0; j < 4; j++) {
             int index = i * 4 + j;
             if (index < PRECIPITATION_INTERVALS) {
-                // Extract 2 bits for each intensity value
                 precipitation->precipitation_intensity[index] = (byte >> (j * 2)) & 0x03;
             }
         }
@@ -244,41 +280,5 @@ void unpack_precipitation(PrecipitationPackage weather_data, Precipitation* prec
     strncpy(temp_line, forecast_hours[0].conditions_string, strchr(forecast_hours[0].conditions_string, '\n') - forecast_hours[0].conditions_string);
     temp_line[strchr(forecast_hours[0].conditions_string, '\n') - forecast_hours[0].conditions_string] = '\0';
 
-    // Format precipitation string based on type and intensity
-    if (precipitation->precipitation_intensity[0] == 0) {
-        // No precipitation is happening now
-        // Find first non-zero intensity
-        int start = 0;
-        while (start < PRECIPITATION_INTERVALS && precipitation->precipitation_intensity[start] == 0) {
-            start++;
-        }
-
-        if (start < PRECIPITATION_INTERVALS) {
-            // Precipitation is coming later
-            int minutes_until = start * 5;
-            snprintf(precipitation->precipitation_string, MAX_STRING_LENGTH - 1,
-                    "%s\n%s\nin %dm", temp_line, get_precipitation_string(type), minutes_until);
-        } else {
-            // No precipitation
-            snprintf(precipitation->precipitation_string, MAX_STRING_LENGTH - 1,
-                    "%s\nNo precipitation", temp_line);
-        }
-    } else {
-        // Precipitation is happening now, find when it ends
-        int end = 0;
-        while (end < PRECIPITATION_INTERVALS && precipitation->precipitation_intensity[end] > 0) {
-            end++;
-        }
-        end--; // Move back to last non-zero intensity
-
-        int duration = (end + 1) * 5; // Duration in minutes
-        if (duration > 60) {
-            snprintf(precipitation->precipitation_string, MAX_STRING_LENGTH - 1,
-                    "%s\n%s\nfor 1h+", temp_line, get_precipitation_string(type));
-        } else {
-            snprintf(precipitation->precipitation_string, MAX_STRING_LENGTH - 1,
-                    "%s\n%s\nfor %dm", temp_line, get_precipitation_string(type), duration);
-        }
-    }
-    precipitation->precipitation_string[MAX_STRING_LENGTH - 1] = '\0';
+    format_precipitation_string(precipitation, temp_line);
 }

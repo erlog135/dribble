@@ -3,7 +3,6 @@
 #include "utils/weather.h"
 #include "utils/msgproc.h"
 #include "utils/prefs.h"
-#include "utils/demo.h"
 #include "gfx/windows/viewer.h"
 #include "gfx/windows/splash.h"
 
@@ -13,46 +12,23 @@
 static Window* s_splash_window;
 static Window* s_viewer_window;
 
-// Forward declarations
-static void handle_data_request(void);
-
 // Splash completion handler
 static void splash_completion_handler(bool success) {
   if (success) {
     UTIL_LOG(APP_LOG_LEVEL_DEBUG, "Splash loading successful, transitioning to viewer");
-    
-    // Create and show the viewer window
+
     s_viewer_window = viewer_window_create();
-    viewer_set_data_request_callback(handle_data_request);
-    
-    // Push viewer window and pop splash
     window_stack_push(s_viewer_window, true);
     vibes_short_pulse();
-    
-    // Update viewer with initial data
+
     viewer_update_view(0, 0);  // Start at hour 0, conditions page
 
     // Remove splash window after transition
     app_timer_register(500, (AppTimerCallback)window_stack_remove, s_splash_window);
   } else {
     UTIL_LOG(APP_LOG_LEVEL_ERROR, "Splash loading failed");
-    // Splash window stays visible with error message
-    // User can try again by restarting the app
+    // Splash window stays visible with error message; user restarts the app to retry
   }
-}
-
-// Data request handler for viewer
-static void handle_data_request(void) {
-  if(DEMO_MODE) {
-    demo_populate_forecast_hours();
-    demo_populate_precipitation();
-    viewer_update_view(viewer_get_current_hour(), viewer_get_current_page());
-    return;
-  }
-
-  // In the new flow, we don't send requests - data comes automatically from PebbleKit JS
-  // Just update the view with current data
-  viewer_update_view(viewer_get_current_hour(), viewer_get_current_page());
 }
 
 static void inbox_received_callback(DictionaryIterator *iter, void *context) {
@@ -167,18 +143,6 @@ static void outbox_failed_callback(DictionaryIterator *iter,
   // The message just sent failed to be delivered
   UTIL_LOG(APP_LOG_LEVEL_ERROR, "Message send failed. Reason: %d", (int)reason);
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 static void prv_init(void) {

@@ -52,9 +52,6 @@ static bool animating = false;
 static bool transition_animating = false;
 static bool background_animating = false;
 
-// Data request callback
-static ViewerDataRequestCallback data_request_callback = NULL;
-
 // Forward declarations
 static void update_view(uint8_t hour, uint8_t page);
 static GColor get_background_color_for_forecast(uint8_t hour, uint8_t page);
@@ -436,8 +433,8 @@ static void init_layers(Layer* window_layer) {
 #ifndef PBL_PLATFORM_APLITE
     text_animation_set_image_layers(images_layer, &prev_image, &current_image, &next_image);
 
-    // Set image layers for transition animation system
-    transition_animation_set_image_layers(images_layer, &prev_image, &current_image, &next_image);
+    // Set image layer for transition animation system
+    transition_animation_set_image_layer(images_layer);
 
     // Initialize animation system
     animation_system_init();
@@ -696,8 +693,4 @@ void viewer_set_current_view(uint8_t hour, uint8_t page) {
   hour_view = hour;
   page_view = page;
   update_view(hour, page);
-}
-
-void viewer_set_data_request_callback(ViewerDataRequestCallback callback) {
-  data_request_callback = callback;
 }

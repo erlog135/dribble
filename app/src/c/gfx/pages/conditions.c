@@ -220,4 +220,9 @@ void deinit_conditions_layers(void) {
         gpath_destroy(precipitation_graph);
         precipitation_graph = NULL;
     }
-} 
+
+    if (conditions_layer) {
+        layer_destroy(conditions_layer);
+        conditions_layer = NULL;
+    }
+}

@@ -31,6 +31,9 @@ static const char* PRECIPITATION_STRINGS[] = {
 // Array of forecast hours
 ForecastHour forecast_hours[12];
 
+// Next-hour precipitation (single definition; declared extern in weather.h)
+Precipitation precipitation;
+
 const char* get_weather_condition_string(int condition_code) {
     if (condition_code >= 0 && condition_code < NUM_WEATHER_CONDITIONS) {
         return WEATHER_CONDITION_STRINGS[condition_code];

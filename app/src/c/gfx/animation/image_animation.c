@@ -3,15 +3,16 @@
 #include "../pages/experiential.h"
 #include "../../utils/weather.h" // for forecast_hours
 
-// Experiential image offset definitions
-GPoint experiential_image_offsets[] = {
-    {0, 10}, //mask
-    {0, -15}, //cap
-    {0, 0}, //sunglasses
-    {0, -10}, //hat
-    {0, 0}, //hat+scarf
-    {10, 0}, //umbrella
-    {0, 0} //hat+scarf
+// Experiential image offset definitions. Internal to this translation unit
+// and immutable; see image_animation.h header comment for semantics.
+static const GPoint experiential_image_offsets[] = {
+  {0, 10}, //mask
+  {0, -15}, //cap
+  {0, 0}, //sunglasses
+  {0, -10}, //hat
+  {0, 0}, //hat+scarf
+  {10, 0}, //umbrella
+  {0, 0} //hat+scarf
 };
 
 //TODO: make "from" image 50px too
@@ -114,23 +115,16 @@ static void km_animation_2_complete(void) {
     }
 }
 
-// Timer callback for delayed KM animation start
+// Timer callback for delayed KM animation start. Both UP and DOWN start
+// animation 1 the same way; the endpoints differ but were decided at
+// setup time and baked into km_animation_1.
 static void km_animation_delay_timer_callback(void* context) {
     s_image_animation_context.km_animation_delay_timer = NULL;
-    
-    // Determine which animation to start based on stored direction
-    if (s_image_animation_context.direction == ANIMATION_DIRECTION_UP) {
-        // UP: Start animation 1 after delay (reversed order from DOWN)
-        if (s_image_animation_context.km_animation_1) {
-            ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Starting delayed KM animation 1 (UP direction)");
-            km_start_kmanimation(s_image_animation_context.km_animation_1, km_animation_1_complete);
-        }
-    } else {
-        // DOWN: Start animation 1 after delay
-        if (s_image_animation_context.km_animation_1) {
-            ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Starting delayed KM animation 1 (DOWN direction)");
-            km_start_kmanimation(s_image_animation_context.km_animation_1, km_animation_1_complete);
-        }
+
+    if (s_image_animation_context.km_animation_1) {
+        ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Starting delayed KM animation 1 (%s)",
+                s_image_animation_context.direction == ANIMATION_DIRECTION_UP ? "UP" : "DOWN");
+        km_start_kmanimation(s_image_animation_context.km_animation_1, km_animation_1_complete);
     }
 }
 

@@ -60,3 +60,11 @@ void unpack_all_hours(uint8_t* data, ForecastHour* forecast_hours_array);
 */
 
 void unpack_precipitation(PrecipitationPackage weather_data, Precipitation* precipitation);
+
+/*
+    Formats precipitation->precipitation_string based on
+    precipitation_intensity[] plus the supplied `temp_line` prefix.
+
+    Shared by msgproc (live data) and demo (preset data).
+*/
+void format_precipitation_string(Precipitation* precipitation, const char* temp_line);

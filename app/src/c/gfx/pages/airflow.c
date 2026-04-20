@@ -3,10 +3,10 @@
 #include "../resources.h"
 #include "../../utils/weather.h"
 
-uint32_t frame_ms = 33;
+static uint32_t frame_ms = 33;
 
-AppTimer* frame_timer;
-AppTimer* timeout_timer;
+static AppTimer* frame_timer;
+static AppTimer* timeout_timer;
 
 #define HIGH_WIND_SPEED 75
 #define ANEMOMETER_TIMEOUT_MS (60 * 1000)  // 1 minute in milliseconds
@@ -15,7 +15,7 @@ AppTimer* timeout_timer;
 #define ANEMOMETER_SPEED_MIN 182*6
 #define ANEMOMETER_SPEED_MAX 182*30
 
-int32_t anemometer_speed = ANEMOMETER_SPEED_MIN; 
+static int32_t anemometer_speed = ANEMOMETER_SPEED_MIN;
 
 static Layer* airflow_layer;
 static int32_t current_angle = 0;
@@ -140,8 +140,7 @@ void set_airflow_view(int hour) {
     }
 }
 
-void update_icons() {
-
+static void update_icons() {
     if(!is_active) {
         return;
     }
@@ -189,7 +188,7 @@ static void reset_timeout() {
     }
 }
 
-void frame_update() {
+static void frame_update() {
     // Only update if we're active
     if (!is_active) return;
     
