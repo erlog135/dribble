@@ -134,7 +134,7 @@ static void splash_window_load(Window *window) {
         bounds.size.w,
         bounds.size.h,
         PBL_IF_ROUND_ELSE(true, false),
-    #ifdef PBL_PLATFORM_EMERY
+    #if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
         true
     #else
         false

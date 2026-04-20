@@ -7,7 +7,7 @@
   ],
   "private": true,
   "dependencies": {
-    "@rebble/clay": "^1.0.6"
+    "@rebble/clay": "^1.0.8"
   },
   "pebble": {
     "displayName": "Dribble",
@@ -23,7 +23,8 @@
       "chalk",
       "diorite",
       "emery",
-      "flint"
+      "flint",
+      "gabbro"
     ],
     "watchapp": {
       "watchface": false

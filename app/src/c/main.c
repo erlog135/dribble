@@ -27,6 +27,7 @@ static void splash_completion_handler(bool success) {
     
     // Push viewer window and pop splash
     window_stack_push(s_viewer_window, true);
+    vibes_short_pulse();
     
     // Update viewer with initial data
     viewer_update_view(0, 0);  // Start at hour 0, conditions page
