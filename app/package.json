@@ -499,6 +499,11 @@
           "type": "raw",
           "name": "RAINDROP_80PX",
           "file": "timeline/Raindrop_80px.pdc"
+        },
+        {
+          "type": "raw",
+          "name": "FIN_50PX",
+          "file": "timeline/Fin_50px.pdc"
         }
       ],
       "publishedMedia": [

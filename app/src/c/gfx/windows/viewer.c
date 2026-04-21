@@ -22,6 +22,8 @@
   #define VIEWER_LOG(level, fmt, ...)
 #endif
 
+#define FIN_IMAGE_TOP_OFFSET 15
+
 enum {
   VIEW_PAGE_CONDITIONS,
   VIEW_PAGE_AIRFLOW,
@@ -36,6 +38,11 @@ static TextLayer* prev_time_layer;
 static TextLayer* current_time_layer;
 static TextLayer* next_time_layer;
 static TextLayer* current_text_layer;
+
+// Hour-boundary overlays
+static StatusBarLayer* s_status_bar;   // Visible only on hour 0
+static Layer* s_fin_layer;             // Visible only on hour 11
+static GDrawCommandImage* s_fin_image;
 
 // Image references for the three positions. Each active page populates these
 // via set_<page>_view(); the viewer then draws them through images_layer.
@@ -176,6 +183,12 @@ static void background_animation_complete_page(void) {
     VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Background page animation completed");
 }
 
+static void draw_fin_image(Layer* layer, GContext* ctx) {
+    if (s_fin_image) {
+        gdraw_command_image_draw(ctx, s_fin_image, GPoint(0, 0));
+    }
+}
+
 /**
  * @brief Draws the three images (prev, current, next) at their respective positions.
  */
@@ -226,6 +239,12 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
   if(hour_view > 0) {
     if(animations_enabled()) {
 #ifndef PBL_PLATFORM_APLITE
+      // Hide any overlay that won't be visible at the destination hour before
+      // animations start so it doesn't linger through the transition.
+      if (hour_view == 11 && s_fin_layer) {
+        layer_set_hidden(s_fin_layer, true);
+      }
+
       // Hour transition: background slides from top, images/text cross-fade.
       GColor animation_color = get_background_color_for_forecast(hour_view - 1, page_view);
       background_animation_start(BACKGROUND_ANIMATION_FROM_TOP, animation_color, background_animation_complete_hour);
@@ -295,6 +314,12 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context)
   if(hour_view < 11) {
     if(animations_enabled()) {
 #ifndef PBL_PLATFORM_APLITE
+      // Hide any overlay that won't be visible at the destination hour before
+      // animations start so it doesn't linger through the transition.
+      if (hour_view == 0 && s_status_bar) {
+        layer_set_hidden(status_bar_layer_get_layer(s_status_bar), true);
+      }
+
       GColor animation_color = get_background_color_for_forecast(hour_view + 1, page_view);
       background_animation_start(BACKGROUND_ANIMATION_FROM_BOTTOM, animation_color, background_animation_complete_hour);
 
@@ -394,6 +419,26 @@ static void init_layers(Layer* window_layer) {
     transition_animation_init(window_layer);
 #endif
   }
+
+  // Status bar overlay – shown only on hour 0
+  s_status_bar = status_bar_layer_create();
+  status_bar_layer_set_colors(s_status_bar, GColorClear, GColorBlack);
+  layer_set_hidden(status_bar_layer_get_layer(s_status_bar), hour_view != 0);
+  layer_add_child(window_layer, status_bar_layer_get_layer(s_status_bar));
+
+  // Fin banner overlay – shown only on hour 11. Bottom edge flush with text
+  // (same LAYOUT_PAD_B margin used by LAYOUT_NEXT_TIME_BOUNDS).
+  s_fin_image = gdraw_command_image_create_with_resource(RESOURCE_ID_FIN_50PX);
+  if (s_fin_image) {
+    GSize fin_size = gdraw_command_image_get_bounds_size(s_fin_image);
+    int16_t fin_x = (LAYOUT_W - fin_size.w) / 2;
+    int16_t fin_y = LAYOUT_H - LAYOUT_PAD_B - fin_size.h + FIN_IMAGE_TOP_OFFSET;
+    s_fin_layer = layer_create(GRect(fin_x, fin_y, fin_size.w, fin_size.h));
+    layer_set_update_proc(s_fin_layer, draw_fin_image);
+    layer_set_hidden(s_fin_layer, hour_view != 11);
+    layer_add_child(window_layer, s_fin_layer);
+  }
+
   VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Layers initialized");
 }
 
@@ -449,6 +494,13 @@ static void update_view(uint8_t hour, uint8_t page) {
   text_layer_set_text(prev_time_layer, (hour == 0)  ? "" : forecast_hours[hour - 1].hour_string);
   text_layer_set_text(current_time_layer, forecast_hours[hour].hour_string);
   text_layer_set_text(next_time_layer, (hour == 11) ? "" : forecast_hours[hour + 1].hour_string);
+
+  if (s_status_bar) {
+    layer_set_hidden(status_bar_layer_get_layer(s_status_bar), hour != 0);
+  }
+  if (s_fin_layer) {
+    layer_set_hidden(s_fin_layer, hour != 11);
+  }
 
   apply_page_content(hour, page);
 }
@@ -511,6 +563,19 @@ static void prv_window_unload(Window *window) {
   deinit_conditions_layers();
   deinit_airflow_layers();
   deinit_experiential_layers();
+
+  if (s_status_bar) {
+    status_bar_layer_destroy(s_status_bar);
+    s_status_bar = NULL;
+  }
+  if (s_fin_layer) {
+    layer_destroy(s_fin_layer);
+    s_fin_layer = NULL;
+  }
+  if (s_fin_image) {
+    gdraw_command_image_destroy(s_fin_image);
+    s_fin_image = NULL;
+  }
 }
 
 // Public API implementation
