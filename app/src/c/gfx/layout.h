@@ -14,24 +14,22 @@
 #endif
 
 // ── Padding ───────────────────────────────────────────────────────────────────
+// Scale layout spacing up 1.5x on pixel-dense displays.
+#define LAYOUT_SCALE(v)  ((LAYOUT_PIXEL_DENSE) ? ((v) * 3 / 2) : (v))
+
 #if defined(PBL_ROUND)
-  #if LAYOUT_PIXEL_DENSE
-    #define LAYOUT_PAD_L  28
-    #define LAYOUT_PAD_R  28
-    #define LAYOUT_PAD_T  24
-    #define LAYOUT_PAD_B  24
-  #else
-    #define LAYOUT_PAD_L  18
-    #define LAYOUT_PAD_R  18
-    #define LAYOUT_PAD_T  16
-    #define LAYOUT_PAD_B  16
-  #endif
+    #define LAYOUT_PAD_L  LAYOUT_SCALE(18)
+    #define LAYOUT_PAD_R  LAYOUT_SCALE(18)
+    #define LAYOUT_PAD_T  LAYOUT_SCALE(16)
+    #define LAYOUT_PAD_B  LAYOUT_SCALE(16)
 #else
-  #define LAYOUT_PAD_L  6
-  #define LAYOUT_PAD_R  6
-  #define LAYOUT_PAD_T  4
-  #define LAYOUT_PAD_B  4
+  #define LAYOUT_PAD_L  LAYOUT_SCALE(6)
+  #define LAYOUT_PAD_R  LAYOUT_SCALE(6)
+  #define LAYOUT_PAD_T  LAYOUT_SCALE(4)
+  #define LAYOUT_PAD_B  LAYOUT_SCALE(4)
 #endif
+
+
 
 // ── Text ──────────────────────────────────────────────────────────────────────
 #if LAYOUT_PIXEL_DENSE

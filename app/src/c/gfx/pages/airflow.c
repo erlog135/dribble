@@ -14,6 +14,7 @@
 #define ANEMO_RADIUS 30
 #define ANEMO_CUP_SIZE 15
 #define ANEMO_DIAM (ANEMO_RADIUS * 2)
+#define ANEMO_PADDING 1
 
 static const uint32_t frame_ms = 33;
 
@@ -168,7 +169,12 @@ Layer* init_airflow_layers(Layer* window_layer, GDrawCommandImage** prev_image, 
     GPoint icon_origin = LAYOUT_CUR_ICON_POS;
     int cx = icon_origin.x + LAYOUT_ICON_LG / 2;
     int cy = icon_origin.y + LAYOUT_ICON_LG / 2;
-    GRect anemo_frame = GRect(cx - ANEMO_RADIUS, cy - ANEMO_RADIUS, ANEMO_DIAM, ANEMO_DIAM);
+    GRect anemo_frame = GRect(
+        cx - ANEMO_RADIUS - ANEMO_PADDING,
+        cy - ANEMO_RADIUS - ANEMO_PADDING,
+        ANEMO_DIAM + ANEMO_PADDING * 2,
+        ANEMO_DIAM + ANEMO_PADDING * 2
+    );
 
     airflow_layer = layer_create(anemo_frame);
     layer_set_update_proc(airflow_layer, draw_airflow);
@@ -222,7 +228,10 @@ void draw_airflow(Layer* layer, GContext* ctx) {
 
     // Layer is sized to ANEMO_DIAM x ANEMO_DIAM; draw in layer-local coords.
     GRect bounds = layer_get_bounds(layer);
-    GPoint center = GPoint(bounds.origin.x + ANEMO_RADIUS, bounds.origin.y + ANEMO_RADIUS);
+    GPoint center = GPoint(
+        bounds.origin.x + ANEMO_RADIUS + ANEMO_PADDING,
+        bounds.origin.y + ANEMO_RADIUS + ANEMO_PADDING
+    );
 
     graphics_context_set_stroke_width(ctx, 1);
     graphics_context_set_stroke_color(ctx, GColorBlack);
