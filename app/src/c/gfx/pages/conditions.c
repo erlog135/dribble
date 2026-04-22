@@ -1,6 +1,7 @@
 #include "conditions.h"
 #include "../layout.h"
 #include "../resources.h"
+#include "../animation/precip_animation.h"
 #include "../../utils/weather.h"
 
 static Layer* conditions_layer;
@@ -38,7 +39,7 @@ static const int GRIDLINE_COUNT = 3;
 static GPathInfo precipitation_graph_info = {
   .num_points = 15,
   .points = (GPoint[]){
-    {0, 0},
+    {1, 0},
     {7, 0},
     {14, 0},
     {21, 0},
@@ -50,16 +51,38 @@ static GPathInfo precipitation_graph_info = {
     {63, 0},
     {70, 0},
     {77, 0},
-    {84, 0},
-    {84, 0},
-    {0, 0},
+    {83, 0},
+    {83, 0},
+    {1, 0},
   }
 };
+
+// Bake the 13 data-point Y coordinates from current precipitation data.
+// Sets graph_points_dirty to false; the two closing-path points are also set.
+static void bake_graph_points(void) {
+    const int step = LAYOUT_PRECIP_H / 4;
+    for (int i = 0; i < 13; i++) {
+        precipitation_graph_info.points[i].y =
+            LAYOUT_PRECIP_H - (precipitation.precipitation_intensity[i] * step);
+    }
+    precipitation_graph_info.points[13].y = LAYOUT_PRECIP_H;
+    precipitation_graph_info.points[14].y = LAYOUT_PRECIP_H;
+    graph_points_dirty = false;
+}
 
 // Timer callback to start drawing the graph after a delay
 static void graph_draw_timer_callback(void* context) {
     graph_draw_timer = NULL;
     show_graph = true;
+
+    bake_graph_points();
+
+#ifndef PBL_PLATFORM_APLITE
+    if (conditions_layer) {
+        precip_animation_start(conditions_layer, &precipitation_graph_info,
+                               13, LAYOUT_PRECIP_H);
+    }
+#endif
 
     if (conditions_layer) {
         layer_mark_dirty(conditions_layer);
@@ -75,6 +98,10 @@ void set_conditions_view(int hour) {
         graph_draw_timer = NULL;
     }
     show_graph = false;
+
+#ifndef PBL_PLATFORM_APLITE
+    precip_animation_stop();
+#endif
 
     // The graph's Y coordinates depend on precipitation data and on whether it's
     // visible at all; re-bake on every activation so a new forecast or hour
@@ -163,27 +190,30 @@ void draw_conditions(Layer* layer, GContext* ctx) {
         return;
     }
 
-    // Re-bake graph Y coordinates only when inputs have changed. `draw_conditions`
-    // runs once per frame of any redraw the window triggers, so recomputing 15
-    // points each time is avoidable.
+    // Re-bake graph Y coordinates only when inputs have changed. Skip when the
+    // precip animation is running — it owns the point values for each frame.
     if (graph_points_dirty) {
-        const int step = LAYOUT_PRECIP_H / 4;
-        for (int i = 0; i < 13; i++) {
-            precipitation_graph_info.points[i].y = LAYOUT_PRECIP_H - (precipitation.precipitation_intensity[i] * step);
-        }
-        precipitation_graph_info.points[13].y = LAYOUT_PRECIP_H;
-        precipitation_graph_info.points[14].y = LAYOUT_PRECIP_H;
-        graph_points_dirty = false;
+        bake_graph_points();
     }
 
     // Gridlines: three equally-spaced horizontal lines inside the precipitation rect.
+    // During the rise animation they follow the same progress curve as the graph.
     graphics_context_set_stroke_width(ctx, 1);
     graphics_context_set_stroke_color(ctx, GColorDarkGray);
     const int step = LAYOUT_PRECIP_H / 4;
     const int x0 = LAYOUT_PRECIP_X;
     const int x1 = x0 + LAYOUT_PRECIP_W;
+    const int bottom_y = LAYOUT_PRECIP_Y + LAYOUT_PRECIP_H;
+#ifndef PBL_PLATFORM_APLITE
+    AnimationProgress anim_progress = precip_animation_get_progress();
+#endif
     for (int i = 1; i <= GRIDLINE_COUNT; i++) {
-        int y = LAYOUT_PRECIP_Y + (i * step);
+        int target_y = LAYOUT_PRECIP_Y + (i * step);
+#ifndef PBL_PLATFORM_APLITE
+        int y = bottom_y + (int)((int32_t)(target_y - bottom_y) * anim_progress / ANIMATION_NORMALIZED_MAX);
+#else
+        int y = target_y;
+#endif
         graphics_draw_line(ctx, GPoint(x0, y), GPoint(x1, y));
     }
 
@@ -201,6 +231,10 @@ void deinit_conditions_layers(void) {
         app_timer_cancel(graph_draw_timer);
         graph_draw_timer = NULL;
     }
+
+#ifndef PBL_PLATFORM_APLITE
+    precip_animation_deinit();
+#endif
     
     if (condition_images_25px) {
         deinit_25px_condition_images(condition_images_25px);

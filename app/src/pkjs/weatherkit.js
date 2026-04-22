@@ -175,19 +175,20 @@ function processPrecipitationMinutes(nextHour, precipitationMinutes) {
             });
         }
 
-        // Find the maximum precipitation intensity
-        var intensityValues = precipitationMinutes.map(function (minute) {
-            return minute.precipitationIntensity;
-        });
-        var maxIntensity = Math.max.apply(null, intensityValues);
-
-        // Scale all intensities to 0-3 range and extract just the intensity values
-        // Use ceiling so only exactly 0 intensity gets value 0
+        // Map intensities to 0-3 using absolute mm/hr thresholds (consistent with events.js)
+        var isSnowLike = (nextHour === "snow" || nextHour === "sleet");
         var scaledIntensities = precipitationMinutes.map(function (minute) {
-            if (maxIntensity > 0 && minute.precipitationIntensity > 0) {
-                return Math.min(3, Math.ceil((minute.precipitationIntensity / maxIntensity) * 3));
+            var mmhr = minute.precipitationIntensity;
+            if (mmhr < 0.1) return 0;
+            if (isSnowLike) {
+                if (mmhr > 2.5) return 3;
+                if (mmhr >= 1.0) return 2;
+                return 1;
+            } else {
+                if (mmhr > 7.6) return 3;
+                if (mmhr >= 2.5) return 2;
+                return 1;
             }
-            return 0;
         });
 
         return {
