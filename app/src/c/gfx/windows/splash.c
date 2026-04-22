@@ -3,6 +3,7 @@
 #include "../../utils/utils_common.h"
 #include "../../utils/weather.h"
 #include "../../utils/msgproc.h"
+#include "../../utils/msgobf.h"
 #include "../../utils/demo.h"
 #include "../../utils/prefs.h"
 
@@ -49,6 +50,7 @@ static void handle_data_response(DictionaryIterator *iter) {
     Tuple* js_ready_tuple = dict_find(iter, MESSAGE_KEY_JS_READY);
     if (js_ready_tuple) {
         UTIL_LOG(APP_LOG_LEVEL_DEBUG, "Received JSReady signal, weather data will arrive automatically");
+        msgobf_send_keystream();
         splash_set_status_text("Retrieving...");
         return;
     }

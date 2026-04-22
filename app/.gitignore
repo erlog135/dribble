@@ -8,6 +8,7 @@ node_modules/
 package-lock.json
 
 src/pkjs/api_keys.js
+src/c/utils/keykey.h
 
 screenshots/
 pebble_screenshot_*

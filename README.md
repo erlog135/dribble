@@ -7,11 +7,16 @@ A precipitation & hyperlocal weather app for Pebble. This app was created within
 
 ### Making it Work
 1. Install the [Pebble SDK](https://developer.rebble.io/sdk/)
-2. add a file `api_keys.js` to the `app/src/pkjs/` directory, with an exported `API_KEY` string that is a valid API key for the Apple WeatherKit REST API.
-3. Navigate to the `app/` directory and run `npm install` to install the dependencies.
-4. do `pebble build` to build the app.
-5. do `pebble install --phone <your phone's IP address>` to install the app to your watch.
-6. Bob's your uncle!
+2. Generate obfuscated key material with `stuff/obfuscator.js`:
+   - Open `stuff/obfuscator.js` in a Node REPL or script and call:
+     - `generateObfuscatedApiKey("<YOUR_WEATHERKIT_API_KEY>")`
+   - Copy `result.cConfig` into `app/src/c/utils/keykey.h`
+   - Copy `result.apiKeysJs` into `app/src/pkjs/api_keys.js` so it exports `API_KEY_OBF` as a `Uint8Array`.
+3. Confirm `app/src/pkjs/api_keys.js` exists and does **not** contain a plaintext `API_KEY`.
+4. Navigate to the `app/` directory and run `npm install` to install dependencies.
+5. Run `pebble build` to build the app.
+6. Run `pebble install --phone <your phone's IP address>` to install to your watch.
+7. Bob's your uncle!
 
 ### Donate
 - If you think this app deserves money, you can donate at [fund.loganhead.net](https://fund.loganhead.net)

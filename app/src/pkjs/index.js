@@ -8,7 +8,8 @@ var Clay = require('@rebble/clay');
 var clayConfig = require('./config');
 var clay = new Clay(clayConfig);
 
-const { API_KEY } = require('./api_keys');
+const { API_KEY_OBF } = require('./api_keys');
+var API_KEY = null;
 
 var method = "GET";
 var availabilityURL = "https://weatherkit.apple.com/api/v1/availability/";
@@ -35,6 +36,18 @@ function debugLog(message) {
     }
 }
 
+function decryptApiKey(keystream) {
+    if (!keystream || keystream.length === 0) {
+        return null;
+    }
+
+    var out = '';
+    for (var i = 0; i < API_KEY_OBF.length; i++) {
+        out += String.fromCharCode(API_KEY_OBF[i] ^ keystream[i % keystream.length]);
+    }
+    return out;
+}
+
 
 Pebble.addEventListener("ready",
     function (e) {
@@ -54,27 +67,41 @@ Pebble.addEventListener("ready",
         debugLog("Sending JSReady signal to C app");
         Pebble.sendAppMessage({"JS_READY": 1}, function() {
             debugLog("JSReady signal sent successfully");
-            // Now start fetching weather data (check cache first)
-            if(checkCache) {
-                checkCacheOrFetchWeather();
-            } else {
-                getLocation();
-            }
         }, function(e) {
             debugLog("JSReady signal failed: " + JSON.stringify(e));
-            // Still try to fetch data even if JSReady failed
-            if(checkCache) {
-                checkCacheOrFetchWeather();
-            } else {
-                getLocation();
-            }
         });
     }
 );
 
 
+Pebble.addEventListener("appmessage", function (e) {
+    if (!e || !e.payload || e.payload.REQUEST_DATA === undefined) {
+        return;
+    }
 
-// No AppMessage listener needed - C app only receives data, never sends requests
+    API_KEY = decryptApiKey(e.payload.REQUEST_DATA);
+    if (!API_KEY) {
+        debugLog("Received empty REQUEST_DATA keystream");
+        return;
+    }
+    debugLog("Received REQUEST_DATA keystream and decrypted API key");
+
+    // Defer out of the appmessage callback AND give the native companion-app
+    // layer time to finish flushing the ACK for REQUEST_DATA back to C.
+    // setTimeout(0) yields to the JS event loop but the ACK is sent on a
+    // separate native thread; 250ms is enough for it to clear. Without this
+    // the cached-data path calls sendAppMessage while the outbox is still
+    // occupied and gets a synchronous rejection (error callback with
+    // undefined). The fresh-data path is immune because geolocation + XHR
+    // introduce several seconds of natural delay.
+    setTimeout(function () {
+        if (checkCache) {
+            checkCacheOrFetchWeather();
+        } else {
+            getLocation();
+        }
+    }, 250);
+});
 
 //code 0 for success
 //1: hourly forecast failed
@@ -155,16 +182,18 @@ function getLocation() {
 
 
 
-function sendAllWeatherData() {
-    debugLog('Starting weather data transmission');
+var MAX_HOUR_RETRIES = 3;
+var HOUR_RETRY_DELAY_MS = 300;
+
+function sendAllWeatherData(retryCount) {
+    retryCount = retryCount || 0;
+    debugLog('Starting weather data transmission' + (retryCount > 0 ? ' (retry ' + retryCount + ')' : ''));
 
     if (forecastHours.length > 0) {
         debugLog('Packing ' + forecastHours.length + ' forecast hours into single 120-byte message');
         
-        // Pack all hours into a single 120-byte array
         var allHourData = msgproc.packAllHourData(forecastHours);
         
-        // Send all hour data in a single message
         Pebble.sendAppMessage({ "HOUR_DATA": allHourData }, function() {
             debugLog('All hourly data sent successfully! Sending precipitation...');
             if(precipitation != null) {
@@ -172,16 +201,24 @@ function sendAllWeatherData() {
                 sendPrecipitation();
             } else {
                 debugLog('No precipitation data available, sending empty precipitation data');
-                // Send empty precipitation data (type 0, all intensities 0)
                 const emptyPrecipitation = msgproc.packPrecipitation(0, new Array(24).fill(0));
                 sendPrecipitationFromData(emptyPrecipitation);
             }
         }, function(e) {
             debugLog('Hour data transmission failed: ' + JSON.stringify(e));
+            if (retryCount < MAX_HOUR_RETRIES) {
+                var delay = HOUR_RETRY_DELAY_MS * (retryCount + 1);
+                debugLog('Retrying in ' + delay + 'ms (attempt ' + (retryCount + 1) + '/' + MAX_HOUR_RETRIES + ')');
+                setTimeout(function () {
+                    sendAllWeatherData(retryCount + 1);
+                }, delay);
+            } else {
+                debugLog('Max retries reached, hour data could not be delivered');
+            }
         });
     } else {
         debugLog('No forecast hours to send, sending error response');
-        sendResponseData(1); // Send error if no data
+        sendResponseData(1);
     }
 }
 
