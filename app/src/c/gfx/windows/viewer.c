@@ -231,6 +231,19 @@ static void draw_page_images(Layer* layer, GContext* ctx) {
 
 // Click handlers for navigation
 static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
+  // Repeating presses: fast scroll without animation and without wrapping.
+  if (click_recognizer_is_repeating(recognizer)) {
+    if (animations_enabled() && animation_is_busy()) {
+      return;
+    }
+    if (hour_view > 0) {
+      hour_view--;
+      update_view(hour_view, page_view);
+      window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour_view, page_view));
+    }
+    return;
+  }
+
   if (animations_enabled() && animation_is_busy()) {
     VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Animation busy, ignoring up click");
     return;
@@ -306,6 +319,19 @@ static void prv_select_click_handler(ClickRecognizerRef recognizer, void *contex
 }
 
 static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context) {
+  // Repeating presses: fast scroll without animation and without wrapping.
+  if (click_recognizer_is_repeating(recognizer)) {
+    if (animations_enabled() && animation_is_busy()) {
+      return;
+    }
+    if (hour_view < 11) {
+      hour_view++;
+      update_view(hour_view, page_view);
+      window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour_view, page_view));
+    }
+    return;
+  }
+
   if (animations_enabled() && animation_is_busy()) {
     VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Animation busy, ignoring down click");
     return;
@@ -351,8 +377,11 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context)
 
 static void prv_click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_select_click_handler);
-  window_single_click_subscribe(BUTTON_ID_UP, prv_up_click_handler);
-  window_single_click_subscribe(BUTTON_ID_DOWN, prv_down_click_handler);
+  // Up/down use repeating subscriptions so a held button fast-scrolls without
+  // animation after the first animated step. repeat_interval_ms of 150 feels
+  // responsive without being too rapid across only 12 hours.
+  window_single_repeating_click_subscribe(BUTTON_ID_UP, 150, prv_up_click_handler);
+  window_single_repeating_click_subscribe(BUTTON_ID_DOWN, 150, prv_down_click_handler);
 }
 
 static void init_layers(Layer* window_layer) {
