@@ -8,7 +8,7 @@ var Clay = require('@rebble/clay');
 var clayConfig = require('./config');
 var clay = new Clay(clayConfig);
 
-const { API_KEY } = require('./api_keys');
+var API_KEY = require('./api_keys').API_KEY;
 
 var method = "GET";
 var availabilityURL = "https://weatherkit.apple.com/api/v1/availability/";
@@ -19,7 +19,7 @@ var language = "";
 var forecastHours = [];
 var precipitation = null;
 
-const MAX_HOURS = 12;
+var MAX_HOURS = 12;
 var hourInterval = 2; // Default to 2 hours
 var refreshInterval = 30; // Default to 30 minutes
 
@@ -87,12 +87,21 @@ function sendResponseData(responseCode) {
     });
 }
 
+// Helper: build an array of given length filled with a value (ES5 replacement for Array.fill)
+function filledArray(length, value) {
+    var arr = [];
+    for (var i = 0; i < length; i++) {
+        arr.push(value);
+    }
+    return arr;
+}
+
 // Check cache first, then fetch fresh data if needed
 function checkCacheOrFetchWeather() {
     debugLog("Checking cached weather data...");
 
     // Try to get cached weather data
-    const cachedData = msgproc.getCachedWeatherData(refreshInterval);
+    var cachedData = msgproc.getCachedWeatherData(refreshInterval);
 
     if (cachedData) {
         debugLog("Using cached weather data");
@@ -105,7 +114,7 @@ function checkCacheOrFetchWeather() {
         if (forecastHours && forecastHours.length > 0) {
             // Ensure we have precipitation data (use empty if none cached)
             if (precipitation === null) {
-                precipitation = msgproc.packPrecipitation(0, new Array(24).fill(0));
+                precipitation = msgproc.packPrecipitation(0, filledArray(24, 0));
             }
             sendAllWeatherData();
         } else {
@@ -126,9 +135,9 @@ function getLocation() {
         navigator.geolocation.getCurrentPosition(
             function(position) {
                 debugLog("Location obtained successfully");
-                const latitude = position.coords.latitude;
-                const longitude = position.coords.longitude;
-                const location = latitude + "/" + longitude;
+                var latitude = position.coords.latitude;
+                var longitude = position.coords.longitude;
+                var location = latitude + "/" + longitude;
                 debugLog("Location: " + location);
 
                 // Now request weather availability with the obtained location
@@ -160,10 +169,10 @@ function sendAllWeatherData() {
 
     if (forecastHours.length > 0) {
         debugLog('Packing ' + forecastHours.length + ' forecast hours into single 120-byte message');
-        
+
         // Pack all hours into a single 120-byte array
         var allHourData = msgproc.packAllHourData(forecastHours);
-        
+
         // Send all hour data in a single message
         Pebble.sendAppMessage({ "HOUR_DATA": allHourData }, function() {
             debugLog('All hourly data sent successfully! Sending precipitation...');
@@ -173,7 +182,7 @@ function sendAllWeatherData() {
             } else {
                 debugLog('No precipitation data available, sending empty precipitation data');
                 // Send empty precipitation data (type 0, all intensities 0)
-                const emptyPrecipitation = msgproc.packPrecipitation(0, new Array(24).fill(0));
+                var emptyPrecipitation = msgproc.packPrecipitation(0, filledArray(24, 0));
                 sendPrecipitationFromData(emptyPrecipitation);
             }
         }, function(e) {
@@ -219,38 +228,39 @@ function requestWeatherData(location, dataSets) {
         if (xhr.status === 200) {
             debugLog("Weather data responded");
             //debugLog("Weather data: " + xhr.responseText);
-            let response = JSON.parse(xhr.responseText);
+            var response = JSON.parse(xhr.responseText);
 
 
             forecastHours = [];
 
             if ("forecastHourly" in response) {
-                let hours = response.forecastHourly.hours;
-                for (let i = 0; forecastHours.length < MAX_HOURS && i < hours.length; i += hourInterval) {
-                    let hour = hours[i];
-                    let forecastHour = parseWKForecastHour(hour, i);
+                var hours = response.forecastHourly.hours;
+                for (var i = 0; forecastHours.length < MAX_HOURS && i < hours.length; i += hourInterval) {
+                    var hour = hours[i];
+                    var forecastHour = parseWKForecastHour(hour, i);
                     forecastHours.push(forecastHour);
                 }
             }
 
             if ("forecastNextHour" in response) {
                 debugLog("Next hour summaries:");
-                response.forecastNextHour.summary.forEach((summary, index) => {
-                    debugLog(`Summary ${index}: condition=${summary.condition}`);
+                response.forecastNextHour.summary.forEach(function (summary, index) {
+                    debugLog("Summary " + index + ": condition=" + summary.condition);
                 });
                 debugLog("Minutes:");
-                response.forecastNextHour.minutes.forEach(minute => {
-                    debugLog(`  ${minute.startTime}: chance=${minute.precipitationChance}, intensity=${minute.precipitationIntensity}`);
+                response.forecastNextHour.minutes.forEach(function (minute) {
+                    debugLog("  " + minute.startTime + ": chance=" + minute.precipitationChance + ", intensity=" + minute.precipitationIntensity);
                 });
             }
 
-            let nextHour = "clear";
+            var nextHour = "clear";
 
             if ("forecastNextHour" in response) {
                 // Check each summary until we find one that isn't "clear"
-                for (let summary of response.forecastNextHour.summary) {
-                    if (summary.condition !== "clear") {
-                        nextHour = summary.condition;
+                var summariesList = response.forecastNextHour.summary;
+                for (var s = 0; s < summariesList.length; s++) {
+                    if (summariesList[s].condition !== "clear") {
+                        nextHour = summariesList[s].condition;
                         break;
                     }
                 }
@@ -258,7 +268,7 @@ function requestWeatherData(location, dataSets) {
 
             // Use weatherkit.processPrecipitationMinutes for precipitation logic
             if ("forecastNextHour" in response) {
-                let processed = weatherkit.processPrecipitationMinutes(
+                var processed = weatherkit.processPrecipitationMinutes(
                     nextHour,
                     response.forecastNextHour.minutes
                 );
@@ -269,26 +279,33 @@ function requestWeatherData(location, dataSets) {
                     );
                 } else {
                     // No precipitation detected, send empty data
-                    precipitation = msgproc.packPrecipitation(0, new Array(24).fill(0));
+                    precipitation = msgproc.packPrecipitation(0, filledArray(24, 0));
                 }
             } else {
                 // No forecastNextHour data available, send empty precipitation data
-                precipitation = msgproc.packPrecipitation(0, new Array(24).fill(0));
+                precipitation = msgproc.packPrecipitation(0, filledArray(24, 0));
             }
 
             // Precipitation pin: use first summary that isn't clear
             if ("forecastNextHour" in response) {
-                let summaries = response.forecastNextHour.summary;
+                var summaries = response.forecastNextHour.summary;
                 if (summaries && summaries.length > 0) {
-                    let firstPrecip = summaries.find(function (s) { return s.condition && s.condition !== "clear"; });
+                    var firstPrecip = null;
+                    for (var k = 0; k < summaries.length; k++) {
+                        var candidate = summaries[k];
+                        if (candidate.condition && candidate.condition !== "clear") {
+                            firstPrecip = candidate;
+                            break;
+                        }
+                    }
                     if (firstPrecip) {
-                        let startTime = new Date(firstPrecip.startTime);
-                        let endTime = firstPrecip.endTime
+                        var startTime = new Date(firstPrecip.startTime);
+                        var endTime = firstPrecip.endTime
                             ? new Date(firstPrecip.endTime)
                             : new Date(response.forecastNextHour.forecastEnd);
-                        let averageIntensity = firstPrecip.precipitationIntensity || 0;
-                        let precipType = firstPrecip.condition.charAt(0).toUpperCase() + firstPrecip.condition.slice(1);
-                        let pin = events.createNextHourPrecipitationPin(startTime, endTime, precipType, averageIntensity);
+                        var averageIntensity = firstPrecip.precipitationIntensity || 0;
+                        var precipType = firstPrecip.condition.charAt(0).toUpperCase() + firstPrecip.condition.slice(1);
+                        var pin = events.createNextHourPrecipitationPin(startTime, endTime, precipType, averageIntensity);
                         if (pin) {
                             timeline.insertUserPin(pin, function (responseText) {
                                 debugLog("Precipitation pin pushed: " + responseText);
@@ -339,12 +356,12 @@ function requestWeatherAvailability(location) {
             debugLog("Weather availability response: " + xhr.responseText);
             // If availability check is successful, request the actual weather data
             //requestWeatherData(location);
-            let dataSets = "";
+            var dataSets = "";
 
-            if (xhr.responseText.includes("forecastHourly")) {
+            if (xhr.responseText.indexOf("forecastHourly") !== -1) {
                 dataSets += "forecastHourly";
 
-                if (xhr.responseText.includes("forecastNextHour")) {
+                if (xhr.responseText.indexOf("forecastNextHour") !== -1) {
                     dataSets += ",forecastNextHour";
                 }
 
@@ -372,6 +389,12 @@ function requestWeatherAvailability(location) {
 }
 
 function parseWKForecastHour(hour) {
+    var conditionKey = weatherkit.getConditionKey(hour.conditionCode);
+    if (hour.daylight === false) {
+        if (conditionKey === 0) conditionKey = 11;
+        else if (conditionKey === 2) conditionKey = 12;
+    }
+
     var forecastHour = msgproc.packHourData(
         getTimeStringHour(hour.forecastStart),
         Math.round(celsiusToFahrenheit(hour.temperature)),
@@ -383,14 +406,7 @@ function parseWKForecastHour(hour) {
         "windDirection" in hour ? hour.windDirection : -1, //not required in response
         -1, //no air quality in response
         hour.uvIndex,
-        (function() { //if the hour is at night, and the condition is clear or partly cloudy, set the condition to clear night or partly cloudy night
-            let key = weatherkit.getConditionKey(hour.conditionCode);
-            if (hour.daylight === false) {
-                if (key === 0) key = 11;
-                else if (key === 2) key = 12;
-            }
-            return key;
-        })(),
+        conditionKey,
         weatherkit.getExperientialIcon(hour)
     );
 
@@ -403,13 +419,13 @@ module.exports.debugLog = debugLog;
 
 function formatTimeString(utcString) {
     // Create date object from UTC string
-    const date = new Date(utcString);
+    var date = new Date(utcString);
 
     // Get hour in local time
-    let hour = date.getHours();
+    var hour = date.getHours();
 
     // Convert to 12-hour format
-    let period = 'AM';
+    var period = 'AM';
     if (hour >= 12) {
         period = 'PM';
         if (hour > 12) {
@@ -424,9 +440,8 @@ function formatTimeString(utcString) {
 }
 
 function getTimeStringHour(utcString) {
-    const date = new Date(utcString);
-    let hour = date.getHours();
+    var date = new Date(utcString);
+    var hour = date.getHours();
 
     return hour;
 }
-  

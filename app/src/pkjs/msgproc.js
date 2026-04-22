@@ -1,7 +1,7 @@
-const { getConditionKey } = require('./weatherkit');
+var getConditionKey = require('./weatherkit').getConditionKey;
 
-const WEATHER_CACHE_KEY = 'weather_cache_data';
-const PRECIPITATION_CACHE_KEY = 'precipitation_cache_data';
+var WEATHER_CACHE_KEY = 'weather_cache_data';
+var PRECIPITATION_CACHE_KEY = 'precipitation_cache_data';
 
 // Debug configuration
 var debug = false;
@@ -42,8 +42,8 @@ function packHourData(
     condition,
     experientialIcon
 ) {
-    const buffer = new ArrayBuffer(10);
-    const view = new DataView(buffer);
+    var buffer = new ArrayBuffer(10);
+    var view = new DataView(buffer);
 
     // Hour (uint8)
     view.setUint8(0, hour);
@@ -67,23 +67,23 @@ function packHourData(
     // Byte 6: int8 pressure difference from 1000mb (-128 to 127)
     // Byte 7: 4 bits wind direction (0-15, 22.5 deg steps), 4 bits air quality index (0-15, 0-500 in steps of 50)
     // Byte 8: 4 bits uv index (0-15), 4 bits data flags (0000 -> empty, windgust, winddir, airquality)
-    const pressureDiff = Math.max(-128, Math.min(127, Math.round(pressure) - 1000));
+    var pressureDiff = Math.max(-128, Math.min(127, Math.round(pressure) - 1000));
     view.setInt8(6, pressureDiff);
 
     // Calculate data flags
-    const hasWindGust = windGust !== -1;
-    const hasWindDir = windDirection !== -1;
-    const hasAirQuality = airQualityIndex !== -1;
-    const dataFlags = (hasWindGust ? 0x4 : 0) | (hasWindDir ? 0x2 : 0) | (hasAirQuality ? 0x1 : 0);
+    var hasWindGust = windGust !== -1;
+    var hasWindDir = windDirection !== -1;
+    var hasAirQuality = airQualityIndex !== -1;
+    var dataFlags = (hasWindGust ? 0x4 : 0) | (hasWindDir ? 0x2 : 0) | (hasAirQuality ? 0x1 : 0);
 
     // Clamp and pack wind direction and air quality index
-    // Center wind direction bins: shift by half a bin (11.25°) before dividing
-    const windDir4 = hasWindDir ? Math.floor(((windDirection + 11.25) % 360) / 22.5) : 0;
-    const aqi4 = hasAirQuality ? Math.max(0, Math.min(15, Math.round(airQualityIndex / 50))) : 0;
+    // Center wind direction bins: shift by half a bin (11.25 deg) before dividing
+    var windDir4 = hasWindDir ? Math.floor(((windDirection + 11.25) % 360) / 22.5) : 0;
+    var aqi4 = hasAirQuality ? Math.max(0, Math.min(15, Math.round(airQualityIndex / 50))) : 0;
     view.setUint8(7, (windDir4 << 4) | (aqi4 & 0x0F));
 
     // Clamp and pack uv index and data flags
-    const uv4 = Math.max(0, Math.min(15, Math.round(uvIndex)));
+    var uv4 = Math.max(0, Math.min(15, Math.round(uvIndex)));
     view.setUint8(8, (uv4 << 4) | (dataFlags & 0x0F));
 
     // Condition and experiential icons (uint4 each)
@@ -105,18 +105,18 @@ function packPrecipitation(
     precipitationType,
     precipitationMinutes
 ) {
-    const buffer = new ArrayBuffer(7);
-    const view = new DataView(buffer);
+    var buffer = new ArrayBuffer(7);
+    var view = new DataView(buffer);
 
     // First byte: precipitation type (uint8)
     view.setUint8(0, precipitationType);
 
     // Next 6 bytes: 24 precipitation intensity values (2 bits each)
     // Each byte can hold 4 intensity values
-    for (let i = 0; i < 6; i++) {
-        let byte = 0;
-        for (let j = 0; j < 4; j++) {
-            const intensityIndex = i * 4 + j;
+    for (var i = 0; i < 6; i++) {
+        var byte = 0;
+        for (var j = 0; j < 4; j++) {
+            var intensityIndex = i * 4 + j;
             if (intensityIndex < precipitationMinutes.length) {
                 // Shift each 2-bit value into position
                 byte |= (precipitationMinutes[intensityIndex] & 0x03) << (j * 2);
@@ -129,9 +129,9 @@ function packPrecipitation(
 }
 
 function bufferToInts(buffer) {
-    const view = new Uint8Array(buffer);
-    const ints = [];
-    for (let i = 0; i < view.length; i++) {
+    var view = new Uint8Array(buffer);
+    var ints = [];
+    for (var i = 0; i < view.length; i++) {
         ints.push(view[i]);
     }
     return ints;
@@ -144,20 +144,20 @@ function bufferToInts(buffer) {
  * @returns {Array} - Single 120-byte array containing all hour data in order
  */
 function packAllHourData(hourPackages) {
-    const result = [];
-    for (let i = 0; i < 12; i++) {
+    var result = [];
+    for (var i = 0; i < 12; i++) {
         if (i < hourPackages.length) {
             // Add existing hour package data
-            for (let j = 0; j < hourPackages[i].length; j++) {
+            for (var j = 0; j < hourPackages[i].length; j++) {
                 result.push(hourPackages[i][j]);
             }
             // Pad to 10 bytes if needed
-            for (let j = hourPackages[i].length; j < 10; j++) {
+            for (var k = hourPackages[i].length; k < 10; k++) {
                 result.push(0);
             }
         } else {
             // Pad with zeros for missing hours
-            for (let j = 0; j < 10; j++) {
+            for (var m = 0; m < 10; m++) {
                 result.push(0);
             }
         }
@@ -171,7 +171,7 @@ function packAllHourData(hourPackages) {
  */
 function saveWeatherCache(hourPackages) {
     try {
-        const cacheData = {
+        var cacheData = {
             timestamp: Date.now(),
             hourPackages: hourPackages
         };
@@ -188,7 +188,7 @@ function saveWeatherCache(hourPackages) {
  */
 function savePrecipitationCache(precipitationData) {
     try {
-        const cacheData = {
+        var cacheData = {
             timestamp: Date.now(),
             precipitationData: precipitationData
         };
@@ -207,34 +207,34 @@ function savePrecipitationCache(precipitationData) {
 function getCachedWeatherData(maxAgeMinutes) {
     try {
         // Get weather cache
-        const weatherCacheStr = localStorage.getItem(WEATHER_CACHE_KEY);
-        const precipitationCacheStr = localStorage.getItem(PRECIPITATION_CACHE_KEY);
-        
+        var weatherCacheStr = localStorage.getItem(WEATHER_CACHE_KEY);
+        var precipitationCacheStr = localStorage.getItem(PRECIPITATION_CACHE_KEY);
+
         if (!weatherCacheStr) {
             debugLog('No weather cache found');
             return null;
         }
-        
-        const weatherCache = JSON.parse(weatherCacheStr);
-        const now = Date.now();
-        const maxAgeMs = maxAgeMinutes * 60 * 1000;
-        const weatherAge = now - weatherCache.timestamp;
-        
+
+        var weatherCache = JSON.parse(weatherCacheStr);
+        var now = Date.now();
+        var maxAgeMs = maxAgeMinutes * 60 * 1000;
+        var weatherAge = now - weatherCache.timestamp;
+
         if (weatherAge > maxAgeMs) {
             debugLog('Weather cache expired (age: ' + Math.round(weatherAge / (60 * 1000)) + ' minutes, max: ' + maxAgeMinutes + ' minutes)');
             return null;
         }
-        
-        const result = {
+
+        var result = {
             hourPackages: weatherCache.hourPackages,
             precipitationData: null
         };
-        
+
         // Check precipitation cache if it exists
         if (precipitationCacheStr) {
-            const precipitationCache = JSON.parse(precipitationCacheStr);
-            const precipitationAge = now - precipitationCache.timestamp;
-            
+            var precipitationCache = JSON.parse(precipitationCacheStr);
+            var precipitationAge = now - precipitationCache.timestamp;
+
             if (precipitationAge <= maxAgeMs) {
                 result.precipitationData = precipitationCache.precipitationData;
                 debugLog('Using cached precipitation data (age: ' + Math.round(precipitationAge / (60 * 1000)) + ' minutes)');
@@ -242,7 +242,7 @@ function getCachedWeatherData(maxAgeMinutes) {
                 debugLog('Precipitation cache expired (age: ' + Math.round(precipitationAge / (60 * 1000)) + ' minutes)');
             }
         }
-        
+
         debugLog('Using cached weather data (age: ' + Math.round(weatherAge / (60 * 1000)) + ' minutes)');
         return result;
 
@@ -266,11 +266,11 @@ function clearWeatherCache() {
 }
 
 module.exports = {
-    packHourData,
-    packAllHourData,
-    packPrecipitation,
-    saveWeatherCache,
-    savePrecipitationCache,
-    getCachedWeatherData,
-    clearWeatherCache
+    packHourData: packHourData,
+    packAllHourData: packAllHourData,
+    packPrecipitation: packPrecipitation,
+    saveWeatherCache: saveWeatherCache,
+    savePrecipitationCache: savePrecipitationCache,
+    getCachedWeatherData: getCachedWeatherData,
+    clearWeatherCache: clearWeatherCache
 };
