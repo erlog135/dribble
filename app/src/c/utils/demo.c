@@ -18,10 +18,8 @@ typedef struct {
 // Customize these preset values for each hour (starting at 8AM, 2-hour intervals)
 static const PresetHourData preset_hours[12] = {
     // hour_string, temp, wind_speed, wind_gust, wind_dir, pressure, conditions_icon, experiential_icon, experiential_string
-    {"8AM", 68, 8, 12, 4, 1013, WEATHER_CONDITION_PARTLY_CLOUDY, 2, "Feels 66°\nUVI 4\nVis. 18mi"},
-    {"10AM", 74, 10, 15, 5, 1012, WEATHER_CONDITION_CLEAR, 2, "Feels 72°\nUVI 6\nVis. 20mi"},
-    {"12PM", 82, 12, 18, 6, 1011, WEATHER_CONDITION_CLEAR, 3, "Feels 80°\nUVI 9\nVis. 20mi"},
-    {"2PM", 86, 14, 21, 7, 1010, WEATHER_CONDITION_CLEAR, 3, "Feels 84°\nUVI 10\nVis. 20mi"},
+    {"12PM", 76, 12, 18, 6, 1011, WEATHER_CONDITION_CLEAR, 3, "Feels 76°\nUVI 9\nVis. 20mi"},
+    {"2PM", 80, 14, 21, 7, 1010, WEATHER_CONDITION_CLEAR, 3, "Feels 80°\nUVI 10\nVis. 20mi"},
     {"4PM", 84, 15, 22, 0, 1009, WEATHER_CONDITION_PARTLY_CLOUDY, 3, "Feels 82°\nUVI 8\nVis. 18mi"},
     {"6PM", 78, 16, 24, 1, 1008, WEATHER_CONDITION_PARTLY_CLOUDY, 2, "Feels 76°\nUVI 4\nVis. 16mi"},
     {"8PM", 72, 14, 20, 2, 1007, WEATHER_CONDITION_PARTLY_CLOUDY, 0, "Feels 70°\nUVI 1\nVis. 15mi"},
@@ -30,6 +28,8 @@ static const PresetHourData preset_hours[12] = {
     {"2AM", 62, 8, 12, 5, 1004, WEATHER_CONDITION_CLOUDY, 0, "Feels 60°\nUVI 0\nVis. 8mi"},
     {"4AM", 60, 6, 9, 6, 1003, WEATHER_CONDITION_PARTLY_CLOUDY_NIGHT, 0, "Feels 58°\nUVI 0\nVis. 10mi"},
     {"6AM", 62, 7, 11, 7, 1004, WEATHER_CONDITION_PARTLY_CLOUDY_NIGHT, 0, "Feels 60°\nUVI 0\nVis. 12mi"},
+    {"8AM", 68, 8, 12, 4, 1013, WEATHER_CONDITION_PARTLY_CLOUDY, 2, "Feels 66°\nUVI 4\nVis. 18mi"},
+    {"10AM", 74, 10, 15, 5, 1012, WEATHER_CONDITION_CLEAR, 2, "Feels 72°\nUVI 6\nVis. 20mi"},
 };
 
 // Populate the global forecast_hours array with preset data
