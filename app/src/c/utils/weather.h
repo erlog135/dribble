@@ -50,7 +50,7 @@ typedef uint8_t* PrecipitationPackage;
 
 // Forecast hour struct
 //HourPackage is unpacked into this struct
-//hour_string: "12PM"
+//hour_string: "12PM" (12h style) or "13:00" (24h style)
 //conditions_string: "72°\nMostly\nCloudy"
 //airflow_string: "12mph SW\n18mph gusts\n1004mb"
 //experiential_string: "Feels 64°\nUVI 2\nVis. 20mi"
@@ -60,7 +60,7 @@ typedef struct forecast_hour {
     uint32_t wind_speed_resource_id;  // Resource ID for the wind speed icon
     uint8_t conditions_icon;
     uint8_t experiential_icon;
-    char hour_string[5];
+    char hour_string[6];
     char conditions_string[MAX_STRING_LENGTH];
     char airflow_string[MAX_STRING_LENGTH];
     char experiential_string[MAX_STRING_LENGTH];

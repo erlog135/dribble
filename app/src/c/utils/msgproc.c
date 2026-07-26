@@ -71,8 +71,11 @@ void unpack_hour_package(HourPackage weather_data, ForecastHour* forecast_hour) 
     // Get user preferences
     ClaySettings* settings = prefs_get_settings();
 
-    // Format hour string (e.g., "12PM")
-    if (hour == 0) {
+    // Format hour string, honoring the watch's 12h/24h clock setting
+    // (e.g. "12PM" in 12h style, "00:00"/"13:00"/"23:00" in 24h style)
+    if (clock_is_24h_style()) {
+        snprintf(forecast_hour->hour_string, sizeof(forecast_hour->hour_string), "%02d:00", hour);
+    } else if (hour == 0) {
         strcpy(forecast_hour->hour_string, "12AM");
     } else if (hour < 12) {
         snprintf(forecast_hour->hour_string, 5, "%dAM", hour);
