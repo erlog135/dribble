@@ -17,11 +17,17 @@ static char status_text[64] = "Loading...";
 // Loading state
 static bool loading_in_progress = false;
 
+// Timeout timer – fires if JS never delivers data
+#define SPLASH_TIMEOUT_MS 30000
+static AppTimer* timeout_timer = NULL;
+
 // Callbacks
 static SplashCompletionCallback completion_callback = NULL;
 
 // Forward declarations
 static void handle_data_response(DictionaryIterator *iter);
+static void handle_load_error(const char* message);
+static void timeout_callback(void* context);
 
 /**
  * @brief Draws the splash image if available
@@ -42,6 +48,41 @@ static void image_layer_update_proc(Layer* layer, GContext* ctx) {
 
 
 /**
+ * @brief Cancels the timeout timer if it is running
+ */
+static void cancel_timeout(void) {
+    if (timeout_timer) {
+        app_timer_cancel(timeout_timer);
+        timeout_timer = NULL;
+    }
+}
+
+/**
+ * @brief Shared error handler – sets error text, vibrates long, fires completion callback
+ */
+static void handle_load_error(const char* message) {
+    cancel_timeout();
+    loading_in_progress = false;
+    splash_set_status_text(message);
+    vibes_long_pulse();
+    UTIL_LOG(APP_LOG_LEVEL_ERROR, "Splash load error: %s", message);
+    if (completion_callback) {
+        completion_callback(false);
+    }
+}
+
+/**
+ * @brief Timeout callback – fires if JS never delivers data within SPLASH_TIMEOUT_MS
+ */
+static void timeout_callback(void* context) {
+    timeout_timer = NULL;
+    if (loading_in_progress) {
+        UTIL_LOG(APP_LOG_LEVEL_ERROR, "Timeout – no data received from JS");
+        handle_load_error("No response");
+    }
+}
+
+/**
  * @brief Handles incoming weather data responses
  */
 static void handle_data_response(DictionaryIterator *iter) {
@@ -60,21 +101,9 @@ static void handle_data_response(DictionaryIterator *iter) {
         UTIL_LOG(APP_LOG_LEVEL_DEBUG, "Response data: %d", response_data);
 
         if (response_data == 2) {
-            UTIL_LOG(APP_LOG_LEVEL_ERROR, "Location error - unable to get current location");
-            splash_set_status_text("Location error");
-            loading_in_progress = false;
-
-            if (completion_callback) {
-                completion_callback(false);
-            }
+            handle_load_error("Location error");
         } else if (response_data == 1) {
-            UTIL_LOG(APP_LOG_LEVEL_ERROR, "Weather data fetch failed");
-            splash_set_status_text("Data error");
-            loading_in_progress = false;
-
-            if (completion_callback) {
-                completion_callback(false);
-            }
+            handle_load_error("Data error");
         }
         return; // Don't process other data in this message
     }
@@ -94,7 +123,8 @@ static void handle_data_response(DictionaryIterator *iter) {
     if (precipitation_package_tuple) {
         unpack_precipitation((PrecipitationPackage)precipitation_package_tuple->value->data, &precipitation);
 
-        // Now we have all data (hourly + precipitation), complete the loading
+        // All data received – cancel timeout and complete loading
+        cancel_timeout();
         splash_set_status_text("Loaded!");
         loading_in_progress = false;
 
@@ -214,6 +244,10 @@ void splash_start_loading(void) {
     } else {
         // In normal mode, PebbleKit JS will automatically send data on ready event
         splash_set_status_text("Connecting...");
+
+        // Start timeout – fires if JS never delivers data
+        cancel_timeout();
+        timeout_timer = app_timer_register(SPLASH_TIMEOUT_MS, timeout_callback, NULL);
     }
 }
 

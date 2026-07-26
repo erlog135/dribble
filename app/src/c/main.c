@@ -6,7 +6,7 @@
 #include "gfx/windows/viewer.h"
 #include "gfx/windows/splash.h"
 
-#define APP_MESSAGE_INBOX_SIZE 1024
+#define APP_MESSAGE_INBOX_SIZE 512
 #define MAX_STRING_LENGTH 40
 
 static Window* s_splash_window;

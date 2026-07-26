@@ -42,7 +42,7 @@ Pebble.addEventListener("ready",
         language = Pebble.getActiveWatchInfo().language;
 
 
-        if(localStorage.getItem('clay-settings')) {
+        if (localStorage.getItem('clay-settings')) {
             //debugLog((localStorage.getItem('clay-settings')));
             var settings = JSON.parse(localStorage.getItem('clay-settings'));
             hourInterval = parseInt(settings.CFG_DISPLAY_INTERVAL, 10) || 2;
@@ -52,18 +52,18 @@ Pebble.addEventListener("ready",
 
         // Send JSReady signal to C app
         debugLog("Sending JSReady signal to C app");
-        Pebble.sendAppMessage({"JS_READY": 1}, function() {
+        Pebble.sendAppMessage({ "JS_READY": 1 }, function () {
             debugLog("JSReady signal sent successfully");
             // Now start fetching weather data (check cache first)
-            if(checkCache) {
+            if (checkCache) {
                 checkCacheOrFetchWeather();
             } else {
                 getLocation();
             }
-        }, function(e) {
+        }, function (e) {
             debugLog("JSReady signal failed: " + JSON.stringify(e));
             // Still try to fetch data even if JSReady failed
-            if(checkCache) {
+            if (checkCache) {
                 checkCacheOrFetchWeather();
             } else {
                 getLocation();
@@ -133,7 +133,7 @@ function getLocation() {
 
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-            function(position) {
+            function (position) {
                 debugLog("Location obtained successfully");
                 var latitude = position.coords.latitude;
                 var longitude = position.coords.longitude;
@@ -144,7 +144,7 @@ function getLocation() {
                 requestWeatherAvailability(location);
 
             },
-            function(error) {
+            function (error) {
                 debugLog("Error getting location: " + error.message);
                 // Fallback to a default location or show error
                 sendResponseData(2);
@@ -174,9 +174,9 @@ function sendAllWeatherData() {
         var allHourData = msgproc.packAllHourData(forecastHours);
 
         // Send all hour data in a single message
-        Pebble.sendAppMessage({ "HOUR_DATA": allHourData }, function() {
+        Pebble.sendAppMessage({ "HOUR_DATA": allHourData }, function () {
             debugLog('All hourly data sent successfully! Sending precipitation...');
-            if(precipitation != null) {
+            if (precipitation != null) {
                 debugLog('Sending precipitation data');
                 sendPrecipitation();
             } else {
@@ -185,8 +185,9 @@ function sendAllWeatherData() {
                 var emptyPrecipitation = msgproc.packPrecipitation(0, filledArray(24, 0));
                 sendPrecipitationFromData(emptyPrecipitation);
             }
-        }, function(e) {
+        }, function (e) {
             debugLog('Hour data transmission failed: ' + JSON.stringify(e));
+            sendResponseData(1); // Notify C app so timeout does not need to trigger
         });
     } else {
         debugLog('No forecast hours to send, sending error response');
@@ -211,7 +212,7 @@ function sendPrecipitationFromData(precipitationData) {
 }
 
 function celsiusToFahrenheit(celsius) {
-    return (celsius * 9/5) + 32;
+    return (celsius * 9 / 5) + 32;
 }
 
 //if the availability check is successful, request the actual weather data
@@ -333,11 +334,13 @@ function requestWeatherData(location, dataSets) {
 
         } else {
             debugLog("Error requesting weather data: " + xhr.status);
+            sendResponseData(1);
         }
     };
 
     xhr.onerror = function () {
         debugLog("Network error occurred while requesting weather data");
+        sendResponseData(1);
     };
 
     xhr.open(method, url);
@@ -365,7 +368,7 @@ function requestWeatherAvailability(location) {
                     dataSets += ",forecastNextHour";
                 }
 
-            }else{
+            } else {
                 debugLog("No data sets available");
                 sendResponseData(1);
                 return;
@@ -381,6 +384,7 @@ function requestWeatherAvailability(location) {
 
     xhr.onerror = function () {
         debugLog("Network error occurred while requesting weather availability");
+        sendResponseData(1);
     };
 
     xhr.open(method, url);
@@ -401,7 +405,7 @@ function parseWKForecastHour(hour) {
         Math.round(celsiusToFahrenheit(hour.temperatureApparent)),
         Math.round(hour.windSpeed),
         "windGust" in hour ? Math.round(hour.windGust) : -1, //not required in response
-        Math.round(hour.visibility/1000),
+        Math.round(hour.visibility / 1000),
         Math.round(hour.pressure),
         "windDirection" in hour ? hour.windDirection : -1, //not required in response
         -1, //no air quality in response
