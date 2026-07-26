@@ -58,6 +58,18 @@ static uint8_t hour_view = 0;
 static uint8_t page_view = VIEW_PAGE_CONDITIONS;
 static uint8_t active_page_view = VIEW_PAGE_NONE;  // Tracks which page's set_*_view(hour) is currently active.
 
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_FLINT) || defined(PBL_PLATFORM_GABBRO)
+#define PBL_TOUCHSCREEN
+#endif
+
+#ifdef PBL_TOUCHSCREEN
+// Touch gesture state
+#define TOUCH_SWIPE_THRESHOLD 30   // px vertical movement = hour scroll
+#define TOUCH_TAP_THRESHOLD   15   // px max movement to count as a tap
+static int16_t s_touch_start_x = 0;
+static int16_t s_touch_start_y = 0;
+#endif
+
 // Forward declarations
 static void update_view(uint8_t hour, uint8_t page);
 static void apply_page_content(uint8_t hour, uint8_t page);
@@ -229,47 +241,23 @@ static void draw_page_images(Layer* layer, GContext* ctx) {
     }
 }
 
-// Click handlers for navigation
-static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
-  // Repeating presses: fast scroll without animation and without wrapping.
-  if (click_recognizer_is_repeating(recognizer)) {
-    if (animations_enabled() && animation_is_busy()) {
-      return;
-    }
-    if (hour_view > 0) {
-      hour_view--;
-      update_view(hour_view, page_view);
-      window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour_view, page_view));
-    }
-    return;
-  }
+// Navigation helpers — shared by click handlers and touch handler
+static void prv_navigate_up(void) {
+  if (animations_enabled() && animation_is_busy()) return;
 
-  if (animations_enabled() && animation_is_busy()) {
-    VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Animation busy, ignoring up click");
-    return;
-  }
-
-  if(hour_view > 0) {
-    if(animations_enabled()) {
+  if (hour_view > 0) {
+    if (animations_enabled()) {
 #ifndef PBL_PLATFORM_APLITE
-      // Hide any overlay that won't be visible at the destination hour before
-      // animations start so it doesn't linger through the transition.
       if (hour_view == 11 && s_fin_layer) {
         layer_set_hidden(s_fin_layer, true);
       }
-
-      // Hour transition: background slides from top, images/text cross-fade.
       GColor animation_color = get_background_color_for_forecast(hour_view - 1, page_view);
       background_animation_start(BACKGROUND_ANIMATION_FROM_TOP, animation_color, background_animation_complete_hour);
-
       image_animation_store_current_images();
-
       hour_view--;
       update_images_and_content_for_animation(hour_view, page_view);
-
       const char* time_text = forecast_hours[hour_view].hour_string;
       const char* content_text = text_layer_get_text(current_text_layer);
-
       VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Starting up animation - hour: %d, time: %s", hour_view, time_text);
       text_animation_start(ANIMATION_DIRECTION_UP, hour_view, time_text, content_text, animation_complete_up);
       image_animation_start(ANIMATION_DIRECTION_UP, hour_view, page_view, image_animation_complete_up);
@@ -282,81 +270,28 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
     return;
   }
 
-  // Wrap: UP at hour 0 jumps straight to hour 11 without animation. The jump is
-  // intentionally un-animated because scrolling 11 hours in the "up" direction
-  // would be disorienting; prefer a snap.
+  // Wrap: UP at hour 0 jumps to hour 11 without animation.
   hour_view = 11;
   update_view(hour_view, page_view);
   window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour_view, page_view));
 }
 
-static void prv_select_click_handler(ClickRecognizerRef recognizer, void *context) {
-  if (animations_enabled() && animation_is_busy()) {
-    VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Animation busy, ignoring select click");
-    return;
-  }
+static void prv_navigate_down(void) {
+  if (animations_enabled() && animation_is_busy()) return;
 
-  page_view++;
-  if(page_view > 2) {
-    page_view = 0;
-  }
-
-  if(animations_enabled()) {
+  if (hour_view < 11) {
+    if (animations_enabled()) {
 #ifndef PBL_PLATFORM_APLITE
-    // Page transition: background slides from the right, images animate out/in.
-    GColor animation_color = get_background_color_for_forecast(hour_view, page_view);
-    background_animation_start(BACKGROUND_ANIMATION_FROM_RIGHT, animation_color, background_animation_complete_page);
-
-    transition_animation_start(transition_animation_complete);
-
-    image_animation_set_current_page(page_view);
-    update_view(hour_view, page_view);
-#endif
-  } else {
-    update_view(hour_view, page_view);
-    window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour_view, page_view));
-  }
-}
-
-static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context) {
-  // Repeating presses: fast scroll without animation and without wrapping.
-  if (click_recognizer_is_repeating(recognizer)) {
-    if (animations_enabled() && animation_is_busy()) {
-      return;
-    }
-    if (hour_view < 11) {
-      hour_view++;
-      update_view(hour_view, page_view);
-      window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour_view, page_view));
-    }
-    return;
-  }
-
-  if (animations_enabled() && animation_is_busy()) {
-    VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Animation busy, ignoring down click");
-    return;
-  }
-
-  if(hour_view < 11) {
-    if(animations_enabled()) {
-#ifndef PBL_PLATFORM_APLITE
-      // Hide any overlay that won't be visible at the destination hour before
-      // animations start so it doesn't linger through the transition.
       if (hour_view == 0 && s_status_bar) {
         layer_set_hidden(status_bar_layer_get_layer(s_status_bar), true);
       }
-
       GColor animation_color = get_background_color_for_forecast(hour_view + 1, page_view);
       background_animation_start(BACKGROUND_ANIMATION_FROM_BOTTOM, animation_color, background_animation_complete_hour);
-
       image_animation_store_current_images();
-
       hour_view++;
       update_images_and_content_for_animation(hour_view, page_view);
-
       const char* time_text = forecast_hours[hour_view].hour_string;
       const char* content_text = text_layer_get_text(current_text_layer);
-
       VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Starting down animation - hour: %d, time: %s", hour_view, time_text);
       text_animation_start(ANIMATION_DIRECTION_DOWN, hour_view, time_text, content_text, animation_complete_down);
       image_animation_start(ANIMATION_DIRECTION_DOWN, hour_view, page_view, image_animation_complete_down);
@@ -369,11 +304,87 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context)
     return;
   }
 
-  // Wrap: DOWN at hour 11 jumps to hour 0 without animation (see up-wrap comment).
+  // Wrap: DOWN at hour 11 jumps to hour 0 without animation.
   hour_view = 0;
   update_view(hour_view, page_view);
   window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour_view, page_view));
 }
+
+static void prv_navigate_page(void) {
+  if (animations_enabled() && animation_is_busy()) return;
+
+  page_view++;
+  if (page_view > 2) page_view = 0;
+
+  if (animations_enabled()) {
+#ifndef PBL_PLATFORM_APLITE
+    GColor animation_color = get_background_color_for_forecast(hour_view, page_view);
+    background_animation_start(BACKGROUND_ANIMATION_FROM_RIGHT, animation_color, background_animation_complete_page);
+    transition_animation_start(transition_animation_complete);
+    image_animation_set_current_page(page_view);
+    update_view(hour_view, page_view);
+#endif
+  } else {
+    update_view(hour_view, page_view);
+    window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour_view, page_view));
+  }
+}
+
+// Click handlers for navigation
+static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
+  if (click_recognizer_is_repeating(recognizer)) {
+    if (animations_enabled() && animation_is_busy()) return;
+    if (hour_view > 0) {
+      hour_view--;
+      update_view(hour_view, page_view);
+      window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour_view, page_view));
+    }
+    return;
+  }
+  prv_navigate_up();
+}
+
+static void prv_select_click_handler(ClickRecognizerRef recognizer, void *context) {
+  prv_navigate_page();
+}
+
+static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context) {
+  if (click_recognizer_is_repeating(recognizer)) {
+    if (animations_enabled() && animation_is_busy()) return;
+    if (hour_view < 11) {
+      hour_view++;
+      update_view(hour_view, page_view);
+      window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour_view, page_view));
+    }
+    return;
+  }
+  prv_navigate_down();
+}
+
+#ifdef PBL_TOUCHSCREEN
+static void prv_touch_handler(const TouchEvent *event, void *context) {
+  if (event->type == TouchEvent_Touchdown) {
+    s_touch_start_x = event->x;
+    s_touch_start_y = event->y;
+
+  } else if (event->type == TouchEvent_Liftoff) {
+    int16_t dx = event->x - s_touch_start_x;
+    int16_t dy = event->y - s_touch_start_y;
+    int16_t adx = dx < 0 ? -dx : dx;
+    int16_t ady = dy < 0 ? -dy : dy;
+
+    if (adx < TOUCH_TAP_THRESHOLD && ady < TOUCH_TAP_THRESHOLD) {
+      prv_navigate_page();
+    } else if (ady >= TOUCH_SWIPE_THRESHOLD && ady > adx) {
+      if (dy < 0) {
+        prv_navigate_down();
+      } else {
+        prv_navigate_up();
+      }
+    }
+  }
+}
+#endif
 
 static void prv_click_config_provider(void *context) {
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_select_click_handler);
@@ -547,9 +558,16 @@ static void prv_window_load(Window *window) {
   }
 
   init_layers(window_layer);
+
+#ifdef PBL_TOUCHSCREEN
+  touch_service_subscribe(prv_touch_handler, NULL);
+#endif
 }
 
 static void prv_window_unload(Window *window) {
+#ifdef PBL_TOUCHSCREEN
+  touch_service_unsubscribe();
+#endif
   if(animations_enabled()) {
 #ifndef PBL_PLATFORM_APLITE
     background_animation_deinit();
