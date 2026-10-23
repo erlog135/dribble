@@ -84,6 +84,17 @@ const char* get_uv_index_string(int uv_index) {
     return "Low";
 }
 
+const char* get_air_quality_string(int aqi) {
+    switch (aqi) {
+        case 1: return "Good";
+        case 2: return "Fine";
+        case 3: return "Meh";
+        case 4: return "Bad";
+        case 5: return "Bad";
+        default: return "";
+    }
+}
+
 uint8_t km_to_miles(uint8_t kilo) {
     return (uint8_t)(kilo * 0.621371f + 0.5f);
 }

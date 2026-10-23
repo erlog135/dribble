@@ -3,6 +3,7 @@
 #include "weather.h"
 #include "prefs.h"
 #include <string.h>
+#include <time.h>
 
 // Unpack all 12 hour packages from a single 120-byte binary blob
 void unpack_all_hours(uint8_t* data, ForecastHour* forecast_hours_array) {
@@ -14,8 +15,13 @@ void unpack_all_hours(uint8_t* data, ForecastHour* forecast_hours_array) {
 
 // TODO: build wind icons here
 void unpack_hour_package(HourPackage weather_data, ForecastHour* forecast_hour) {
-    // Hour (uint8)
-    int hour = weather_data[0];
+    // Relative hour (uint8) offset from current time, processed on watch
+    uint8_t relative_hour = weather_data[0];
+
+    time_t now = time(NULL);
+    struct tm *local_time = localtime(&now);
+    int current_hour = local_time ? local_time->tm_hour : 0;
+    int hour = (current_hour + relative_hour) % 24;
 
     // Temperature (int8)
     int temp = (int8_t)weather_data[1];
@@ -78,11 +84,11 @@ void unpack_hour_package(HourPackage weather_data, ForecastHour* forecast_hour) 
     } else if (hour == 0) {
         strcpy(forecast_hour->hour_string, "12AM");
     } else if (hour < 12) {
-        snprintf(forecast_hour->hour_string, 5, "%dAM", hour);
+        snprintf(forecast_hour->hour_string, sizeof(forecast_hour->hour_string), "%dAM", hour);
     } else if (hour == 12) {
         strcpy(forecast_hour->hour_string, "12PM");
     } else {
-        snprintf(forecast_hour->hour_string, 5, "%dPM", hour - 12);
+        snprintf(forecast_hour->hour_string, sizeof(forecast_hour->hour_string), "%dPM", hour - 12);
     }
 
     // Convert temperature if needed
@@ -207,9 +213,9 @@ void unpack_hour_package(HourPackage weather_data, ForecastHour* forecast_hour) 
                        "Feels %d°%s", feels_like, settings->temperature_units);
 
     // Add UV index (and air quality if available)
-    if (has_air_quality) {
+    if (has_air_quality && aqi4 >= 1 && aqi4 <= 5) {
         written += snprintf(experiential_buffer + written, MAX_STRING_LENGTH - written,
-                          "\nUVI %d AQI %d", uv_index, aqi4 * 50);
+                          "\nUVI %d AQ %s", uv_index, get_air_quality_string(aqi4));
     } else {
         written += snprintf(experiential_buffer + written, MAX_STRING_LENGTH - written,
                           "\nUVI %d", uv_index);

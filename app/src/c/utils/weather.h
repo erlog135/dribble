@@ -88,6 +88,7 @@ const char* get_weather_condition_string(int condition_code);
 const char* get_wind_direction_string(int degrees);
 const char* get_precipitation_string(int precipitation_code);
 const char* get_uv_index_string(int uv_index);
+const char* get_air_quality_string(int aqi);
 
 uint8_t km_to_miles(uint8_t kilo);
 int8_t fahrenheit_to_celsius(int8_t fahrenheit);

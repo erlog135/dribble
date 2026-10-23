@@ -1,7 +1,7 @@
 {
   "name": "dribble",
   "author": "Logan Head",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "keywords": [
     "pebble-app"
   ],
@@ -45,7 +45,9 @@
       "RESPONSE_DATA",
       "REQUEST_HOUR",
       "HOUR_DATA",
-      "PRECIPITATION_PACKAGE"
+      "PRECIPITATION_PACKAGE",
+      "CFG_WEATHER_PROVIDER",
+      "CFG_LEYZUX_URL"
     ],
     "resources": {
       "media": [

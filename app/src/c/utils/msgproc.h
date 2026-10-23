@@ -20,7 +20,7 @@
     managed to cram 12 fields into 10 bytes, so it can be sent easily at the expense of having to be unpacked
     Weather data is sent as one big 80 bit value, packaged in this format:
 
-    uint8: hour of day
+    uint8: relative hour offset (hours from current time)
     int8: temperature degrees (f)
     int8: temperature (feels like) degrees (f)
     uint8: wind speed (kph)
@@ -28,7 +28,7 @@
     uint8: visibility (km)
     int8: pressure difference from 1000mb (-128 to 127)
     uint4: wind direction (0-15) in 22.5 degree increments
-    uint4: air quality index (0-15) 0-500 in steps of 50
+    uint4: air quality index (1-5: 1=👍, 2=OK, 3=Meh, 4=👎, 5=💀)
     uint4: UV index (0-15)
     uint4: data flags (0000 -> empty, windgust, winddir, airquality)
     uint4: condition icon code

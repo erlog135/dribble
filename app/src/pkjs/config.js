@@ -188,11 +188,47 @@ module.exports = [
       "items": [
         {
           "type": "heading",
+          "defaultValue": "Weather Source"
+        },
+        {
+          "type": "select",
+          "messageKey": "CFG_WEATHER_PROVIDER",
+          "defaultValue": "leyzux",
+          "label": "Provider",
+          "options": [
+            {
+              "label": "Leyzux Weather (Proxy)",
+              "value": "leyzux"
+            },
+            {
+              "label": "Open-Meteo",
+              "value": "openmeteo"
+            }
+          ]
+        },
+        {
+          "type": "input",
+          "messageKey": "CFG_LEYZUX_URL",
+          "defaultValue": "",
+          "label": "Leyzux Weather URL",
+          "description": "Base URL for the Leyzux proxy. Coordinates will be appended as /{latitude}/{longitude}.",
+          "attributes": {
+            "placeholder": "https://example.com/weather",
+            "type": "url"
+          }
+        }
+      ]
+    },
+    {
+      "type": "section",
+      "items": [
+        {
+          "type": "heading",
           "defaultValue": "Attribution"
         },
         {
           "type": "text",
-          "defaultValue": "View the Apple WeatherKit data sources <a href='https://developer.apple.com/weatherkit/data-source-attribution/'>here</a>."
+          "defaultValue": "Weather data provided by <a href='https://open-meteo.com/'>Open-Meteo</a> (CC BY 4.0)."
         }
       ]
     },

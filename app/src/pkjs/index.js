@@ -1,18 +1,12 @@
 var keys = require('message_keys');
 var msgproc = require('./msgproc');
-var weatherkit = require('./weatherkit');
-var events = require('./events');
+var leyzux = require('./leyzux');
+var openmeteo = require('./openmeteo');
 var timeline = require('./timeline');
 
 var Clay = require('@rebble/clay');
 var clayConfig = require('./config');
 var clay = new Clay(clayConfig);
-
-var API_KEY = require('./api_keys').API_KEY;
-
-var method = "GET";
-var availabilityURL = "https://weatherkit.apple.com/api/v1/availability/";
-var dataURL = "https://weatherkit.apple.com/api/v1/weather/";
 
 var language = "";
 
@@ -22,8 +16,8 @@ var precipitation = null;
 var MAX_HOURS = 12;
 var hourInterval = 2; // Default to 2 hours
 var refreshInterval = 30; // Default to 30 minutes
-
-var dummyMode = false;
+var weatherProvider = "leyzux"; // "leyzux" or "openmeteo"
+var leyzuxUrl = "";
 
 // Debug configuration
 var debug = false;
@@ -35,26 +29,35 @@ function debugLog(message) {
     }
 }
 
+/**
+ * Loads settings from localStorage saved by Clay
+ */
+function loadSettings() {
+    if (localStorage.getItem('clay-settings')) {
+        try {
+            var settings = JSON.parse(localStorage.getItem('clay-settings'));
+            hourInterval = parseInt(settings.CFG_DISPLAY_INTERVAL, 10) || 2;
+            refreshInterval = parseInt(settings.CFG_REFRESH_INTERVAL, 10) || 30;
+            weatherProvider = settings.CFG_WEATHER_PROVIDER || "leyzux";
+            leyzuxUrl = settings.CFG_LEYZUX_URL || "";
+            debugLog("Settings loaded: provider=" + weatherProvider + ", interval=" + hourInterval + ", refresh=" + refreshInterval);
+        } catch (e) {
+            debugLog("Error loading clay settings: " + e.message);
+        }
+    }
+}
 
 Pebble.addEventListener("ready",
     function (e) {
         debugLog("PebbleKit JS Ready - Starting automatic weather fetch");
         language = Pebble.getActiveWatchInfo().language;
 
-
-        if (localStorage.getItem('clay-settings')) {
-            //debugLog((localStorage.getItem('clay-settings')));
-            var settings = JSON.parse(localStorage.getItem('clay-settings'));
-            hourInterval = parseInt(settings.CFG_DISPLAY_INTERVAL, 10) || 2;
-            refreshInterval = parseInt(settings.CFG_REFRESH_INTERVAL, 10) || 30;
-
-        }
+        loadSettings();
 
         // Send JSReady signal to C app
         debugLog("Sending JSReady signal to C app");
         Pebble.sendAppMessage({ "JS_READY": 1 }, function () {
             debugLog("JSReady signal sent successfully");
-            // Now start fetching weather data (check cache first)
             if (checkCache) {
                 checkCacheOrFetchWeather();
             } else {
@@ -62,7 +65,6 @@ Pebble.addEventListener("ready",
             }
         }, function (e) {
             debugLog("JSReady signal failed: " + JSON.stringify(e));
-            // Still try to fetch data even if JSReady failed
             if (checkCache) {
                 checkCacheOrFetchWeather();
             } else {
@@ -72,16 +74,21 @@ Pebble.addEventListener("ready",
     }
 );
 
+// When Clay configuration is closed/saved, refresh settings and weather
+Pebble.addEventListener("webviewclosed", function (e) {
+    if (!e || !e.response) { return; }
+    debugLog("Clay settings updated, reloading settings and refreshing weather");
+    loadSettings();
+    msgproc.clearWeatherCache();
+    getLocation();
+});
 
-
-// No AppMessage listener needed - C app only receives data, never sends requests
-
-//code 0 for success
-//1: hourly forecast failed
-//2: location error
+// code 0 for success
+// 1: hourly forecast failed
+// 2: location error
 function sendResponseData(responseCode) {
     Pebble.sendAppMessage({ "RESPONSE_DATA": responseCode }, function () {
-        debugLog("Response data sent, expecting hour requests");
+        debugLog("Response data sent: " + responseCode);
     }, function (e) {
         debugLog("Response data failed: " + JSON.stringify(e));
     });
@@ -100,19 +107,14 @@ function filledArray(length, value) {
 function checkCacheOrFetchWeather() {
     debugLog("Checking cached weather data...");
 
-    // Try to get cached weather data
-    var cachedData = msgproc.getCachedWeatherData(refreshInterval);
+    var cachedData = false;//msgproc.getCachedWeatherData(refreshInterval);
 
     if (cachedData) {
         debugLog("Using cached weather data");
-
-        // Use cached data
         forecastHours = cachedData.hourPackages;
         precipitation = cachedData.precipitationData;
 
-        // Send cached data immediately
         if (forecastHours && forecastHours.length > 0) {
-            // Ensure we have precipitation data (use empty if none cached)
             if (precipitation === null) {
                 precipitation = msgproc.packPrecipitation(0, filledArray(24, 0));
             }
@@ -137,16 +139,12 @@ function getLocation() {
                 debugLog("Location obtained successfully");
                 var latitude = position.coords.latitude;
                 var longitude = position.coords.longitude;
-                var location = latitude + "/" + longitude;
-                debugLog("Location: " + location);
+                debugLog("Location: " + latitude + "/" + longitude);
 
-                // Now request weather availability with the obtained location
-                requestWeatherAvailability(location);
-
+                fetchWeather(latitude, longitude);
             },
             function (error) {
                 debugLog("Error getting location: " + error.message);
-                // Fallback to a default location or show error
                 sendResponseData(2);
             },
             {
@@ -157,12 +155,84 @@ function getLocation() {
         );
     } else {
         debugLog("Geolocation not supported");
-        // Fallback to a default location or show error
         sendResponseData(2);
     }
 }
 
+/**
+ * Dispatches weather request to the active provider with automatic fallback.
+ */
+function fetchWeather(latitude, longitude) {
+    forecastHours = [];
+    precipitation = null;
 
+    if (weatherProvider === "leyzux") {
+        if (!leyzuxUrl || leyzuxUrl.trim().length === 0) {
+            debugLog("Leyzux Weather URL is not configured. Falling back to Open-Meteo.");
+            fetchOpenMeteo(latitude, longitude);
+            return;
+        }
+
+        debugLog("Requesting weather from Leyzux proxy (interval=" + hourInterval + ")...");
+        leyzux.fetchWeather(latitude, longitude, leyzuxUrl, { hourInterval: hourInterval }, function (err, result) {
+            if (err) {
+                debugLog("Leyzux Weather failed: " + err.message + ". Falling back to Open-Meteo.");
+                fetchOpenMeteo(latitude, longitude);
+                return;
+            }
+
+            handleWeatherSuccess(result);
+        });
+    } else {
+        debugLog("Requesting weather directly from Open-Meteo...");
+        fetchOpenMeteo(latitude, longitude);
+    }
+}
+
+/**
+ * Fetches weather from Open-Meteo.
+ */
+function fetchOpenMeteo(latitude, longitude) {
+    openmeteo.fetchWeather(latitude, longitude, {
+        hourInterval: hourInterval,
+        maxHours: MAX_HOURS
+    }, function (err, result) {
+        if (err) {
+            debugLog("Open-Meteo failed: " + err.message);
+            sendResponseData(1);
+            return;
+        }
+
+        handleWeatherSuccess(result);
+    });
+}
+
+/**
+ * Handles successful weather payload from either provider.
+ */
+function handleWeatherSuccess(result) {
+    forecastHours = result.hourPackages;
+    precipitation = result.precipitation;
+
+    if (forecastHours && forecastHours.length > 0) {
+        // Cache weather data
+        msgproc.saveWeatherCache(forecastHours);
+        msgproc.savePrecipitationCache(precipitation);
+
+        // Send all weather data to watch
+        sendAllWeatherData();
+
+        // Push timeline pin if one was generated
+        if (result.pin) {
+            timeline.insertUserPin(result.pin, function (responseText) {
+                debugLog("Precipitation pin pushed: " + responseText);
+            });
+        }
+    } else {
+        debugLog("No forecast hours received");
+        sendResponseData(1);
+    }
+}
 
 function sendAllWeatherData() {
     debugLog('Starting weather data transmission');
@@ -181,17 +251,16 @@ function sendAllWeatherData() {
                 sendPrecipitation();
             } else {
                 debugLog('No precipitation data available, sending empty precipitation data');
-                // Send empty precipitation data (type 0, all intensities 0)
                 var emptyPrecipitation = msgproc.packPrecipitation(0, filledArray(24, 0));
                 sendPrecipitationFromData(emptyPrecipitation);
             }
         }, function (e) {
             debugLog('Hour data transmission failed: ' + JSON.stringify(e));
-            sendResponseData(1); // Notify C app so timeout does not need to trigger
+            sendResponseData(1);
         });
     } else {
         debugLog('No forecast hours to send, sending error response');
-        sendResponseData(1); // Send error if no data
+        sendResponseData(1);
     }
 }
 
@@ -211,241 +280,4 @@ function sendPrecipitationFromData(precipitationData) {
     });
 }
 
-function celsiusToFahrenheit(celsius) {
-    return (celsius * 9 / 5) + 32;
-}
-
-//if the availability check is successful, request the actual weather data
-function requestWeatherData(location, dataSets) {
-
-    forecastHours = [];
-    precipitation = null;
-
-    debugLog("Requesting weather data");
-    var url = dataURL + "en_US/" + location + "?dataSets=" + dataSets;
-    var xhr = new XMLHttpRequest();
-
-    xhr.onload = function () {
-        if (xhr.status === 200) {
-            debugLog("Weather data responded");
-            //debugLog("Weather data: " + xhr.responseText);
-            var response = JSON.parse(xhr.responseText);
-
-
-            forecastHours = [];
-
-            if ("forecastHourly" in response) {
-                var hours = response.forecastHourly.hours;
-                for (var i = 0; forecastHours.length < MAX_HOURS && i < hours.length; i += hourInterval) {
-                    var hour = hours[i];
-                    var forecastHour = parseWKForecastHour(hour, i);
-                    forecastHours.push(forecastHour);
-                }
-            }
-
-            if ("forecastNextHour" in response) {
-                debugLog("Next hour summaries:");
-                response.forecastNextHour.summary.forEach(function (summary, index) {
-                    debugLog("Summary " + index + ": condition=" + summary.condition);
-                });
-                debugLog("Minutes:");
-                response.forecastNextHour.minutes.forEach(function (minute) {
-                    debugLog("  " + minute.startTime + ": chance=" + minute.precipitationChance + ", intensity=" + minute.precipitationIntensity);
-                });
-            }
-
-            var nextHour = "clear";
-
-            if ("forecastNextHour" in response) {
-                // Check each summary until we find one that isn't "clear"
-                var summariesList = response.forecastNextHour.summary;
-                for (var s = 0; s < summariesList.length; s++) {
-                    if (summariesList[s].condition !== "clear") {
-                        nextHour = summariesList[s].condition;
-                        break;
-                    }
-                }
-            }
-
-            // Use weatherkit.processPrecipitationMinutes for precipitation logic
-            if ("forecastNextHour" in response) {
-                var processed = weatherkit.processPrecipitationMinutes(
-                    nextHour,
-                    response.forecastNextHour.minutes
-                );
-                if (processed) {
-                    precipitation = msgproc.packPrecipitation(
-                        processed.precipitationType,
-                        processed.precipitationIntensities
-                    );
-                } else {
-                    // No precipitation detected, send empty data
-                    precipitation = msgproc.packPrecipitation(0, filledArray(24, 0));
-                }
-            } else {
-                // No forecastNextHour data available, send empty precipitation data
-                precipitation = msgproc.packPrecipitation(0, filledArray(24, 0));
-            }
-
-            // Precipitation pin: use first summary that isn't clear
-            if ("forecastNextHour" in response) {
-                var summaries = response.forecastNextHour.summary;
-                if (summaries && summaries.length > 0) {
-                    var firstPrecip = null;
-                    for (var k = 0; k < summaries.length; k++) {
-                        var candidate = summaries[k];
-                        if (candidate.condition && candidate.condition !== "clear") {
-                            firstPrecip = candidate;
-                            break;
-                        }
-                    }
-                    if (firstPrecip) {
-                        var startTime = new Date(firstPrecip.startTime);
-                        var endTime = firstPrecip.endTime
-                            ? new Date(firstPrecip.endTime)
-                            : new Date(response.forecastNextHour.forecastEnd);
-                        var averageIntensity = firstPrecip.precipitationIntensity || 0;
-                        var precipType = firstPrecip.condition.charAt(0).toUpperCase() + firstPrecip.condition.slice(1);
-                        var pin = events.createNextHourPrecipitationPin(startTime, endTime, precipType, averageIntensity);
-                        if (pin) {
-                            timeline.insertUserPin(pin, function (responseText) {
-                                debugLog("Precipitation pin pushed: " + responseText);
-                            });
-                        }
-                    }
-                }
-            }
-
-            debugLog("Forecast hours assembled");
-            //debugLog("Forecast hours to send: " + JSON.stringify(forecastHours));
-
-            if (forecastHours.length > 0) {
-                // Cache the weather data before sending
-                msgproc.saveWeatherCache(forecastHours);
-
-                // Cache precipitation data (always available now)
-                msgproc.savePrecipitationCache(precipitation);
-
-                // Send all weather data at once
-                sendAllWeatherData();
-            } else {
-                sendResponseData(1);
-            }
-
-        } else {
-            debugLog("Error requesting weather data: " + xhr.status);
-            sendResponseData(1);
-        }
-    };
-
-    xhr.onerror = function () {
-        debugLog("Network error occurred while requesting weather data");
-        sendResponseData(1);
-    };
-
-    xhr.open(method, url);
-    xhr.setRequestHeader("Authorization", "Bearer " + API_KEY);
-    xhr.send();
-}
-
-function requestWeatherAvailability(location) {
-    debugLog("Requesting weather availability");
-    //var location = "35.602/-77.345";
-    var url = availabilityURL + location;
-    var xhr = new XMLHttpRequest();
-
-    xhr.onload = function () {
-        if (xhr.status === 200) {
-            debugLog("Weather availability response: " + xhr.responseText);
-            // If availability check is successful, request the actual weather data
-            //requestWeatherData(location);
-            var dataSets = "";
-
-            if (xhr.responseText.indexOf("forecastHourly") !== -1) {
-                dataSets += "forecastHourly";
-
-                if (xhr.responseText.indexOf("forecastNextHour") !== -1) {
-                    dataSets += ",forecastNextHour";
-                }
-
-            } else {
-                debugLog("No data sets available");
-                sendResponseData(1);
-                return;
-            }
-
-            requestWeatherData(location, dataSets);
-        } else {
-            debugLog("Error requesting weather availability: " + xhr.status);
-            sendResponseData(1);
-            return;
-        }
-    };
-
-    xhr.onerror = function () {
-        debugLog("Network error occurred while requesting weather availability");
-        sendResponseData(1);
-    };
-
-    xhr.open(method, url);
-    xhr.setRequestHeader("Authorization", "Bearer " + API_KEY);
-    xhr.send();
-}
-
-function parseWKForecastHour(hour) {
-    var conditionKey = weatherkit.getConditionKey(hour.conditionCode);
-    if (hour.daylight === false) {
-        if (conditionKey === 0) conditionKey = 11;
-        else if (conditionKey === 2) conditionKey = 12;
-    }
-
-    var forecastHour = msgproc.packHourData(
-        getTimeStringHour(hour.forecastStart),
-        Math.round(celsiusToFahrenheit(hour.temperature)),
-        Math.round(celsiusToFahrenheit(hour.temperatureApparent)),
-        Math.round(hour.windSpeed),
-        "windGust" in hour ? Math.round(hour.windGust) : -1, //not required in response
-        Math.round(hour.visibility / 1000),
-        Math.round(hour.pressure),
-        "windDirection" in hour ? hour.windDirection : -1, //not required in response
-        -1, //no air quality in response
-        hour.uvIndex,
-        conditionKey,
-        weatherkit.getExperientialIcon(hour)
-    );
-
-    return forecastHour;
-}
-
-// Export the debugLog function so it can be used by other modules
 module.exports.debugLog = debugLog;
-
-
-function formatTimeString(utcString) {
-    // Create date object from UTC string
-    var date = new Date(utcString);
-
-    // Get hour in local time
-    var hour = date.getHours();
-
-    // Convert to 12-hour format
-    var period = 'AM';
-    if (hour >= 12) {
-        period = 'PM';
-        if (hour > 12) {
-            hour -= 12;
-        }
-    }
-    if (hour === 0) {
-        hour = 12;
-    }
-
-    return hour + period;
-}
-
-function getTimeStringHour(utcString) {
-    var date = new Date(utcString);
-    var hour = date.getHours();
-
-    return hour;
-}
