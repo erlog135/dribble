@@ -46,8 +46,7 @@
       "REQUEST_HOUR",
       "HOUR_DATA",
       "PRECIPITATION_PACKAGE",
-      "CFG_WEATHER_PROVIDER",
-      "CFG_LEYZUX_URL"
+      "CFG_WEATHER_PROVIDER"
     ],
     "resources": {
       "media": [

@@ -17,7 +17,6 @@ var MAX_HOURS = 12;
 var hourInterval = 2; // Default to 2 hours
 var refreshInterval = 30; // Default to 30 minutes
 var weatherProvider = "leyzux"; // "leyzux" or "openmeteo"
-var leyzuxUrl = "";
 
 // Debug configuration
 var debug = false;
@@ -39,7 +38,6 @@ function loadSettings() {
             hourInterval = parseInt(settings.CFG_DISPLAY_INTERVAL, 10) || 2;
             refreshInterval = parseInt(settings.CFG_REFRESH_INTERVAL, 10) || 30;
             weatherProvider = settings.CFG_WEATHER_PROVIDER || "leyzux";
-            leyzuxUrl = settings.CFG_LEYZUX_URL || "";
             debugLog("Settings loaded: provider=" + weatherProvider + ", interval=" + hourInterval + ", refresh=" + refreshInterval);
         } catch (e) {
             debugLog("Error loading clay settings: " + e.message);
@@ -167,14 +165,8 @@ function fetchWeather(latitude, longitude) {
     precipitation = null;
 
     if (weatherProvider === "leyzux") {
-        if (!leyzuxUrl || leyzuxUrl.trim().length === 0) {
-            debugLog("Leyzux Weather URL is not configured. Falling back to Open-Meteo.");
-            fetchOpenMeteo(latitude, longitude);
-            return;
-        }
-
         debugLog("Requesting weather from Leyzux proxy (interval=" + hourInterval + ")...");
-        leyzux.fetchWeather(latitude, longitude, leyzuxUrl, { hourInterval: hourInterval }, function (err, result) {
+        leyzux.fetchWeather(latitude, longitude, { hourInterval: hourInterval }, function (err, result) {
             if (err) {
                 debugLog("Leyzux Weather failed: " + err.message + ". Falling back to Open-Meteo.");
                 fetchOpenMeteo(latitude, longitude);

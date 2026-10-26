@@ -1,5 +1,7 @@
 var events = require('./events');
 
+var LEYZUX_BASE_URL = 'https://raincloud.leyzux.com/dribble';
+
 var precipitationTypeNames = [
     "Clear",
     "Precipitation",
@@ -62,11 +64,10 @@ function decodeBase64(b64) {
  * 
  * @param {number|string} latitude - Location latitude
  * @param {number|string} longitude - Location longitude
- * @param {string} baseUrl - Base URL for the Leyzux Weather proxy
  * @param {Object|number|function} optionsOrCallback - Options object ({ hourInterval: 1|2 }) or callback
  * @param {function} [callback] - Function(err, result)
  */
-function fetchWeather(latitude, longitude, baseUrl, optionsOrCallback, callback) {
+function fetchWeather(latitude, longitude, optionsOrCallback, callback) {
     var options = {};
     var cb = callback;
     if (typeof optionsOrCallback === 'function') {
@@ -77,19 +78,9 @@ function fetchWeather(latitude, longitude, baseUrl, optionsOrCallback, callback)
         options = { hourInterval: optionsOrCallback };
     }
 
-    if (!baseUrl || typeof baseUrl !== 'string' || baseUrl.trim().length === 0) {
-        cb(new Error('Leyzux Weather URL is not configured'));
-        return;
-    }
-
-    var cleanBase = baseUrl.trim().replace(/\/+$/, '');
-    var url = cleanBase + '/' + latitude + '/' + longitude;
-
-    var interval = options.hourInterval || options.interval;
-    if (interval) {
-        var separator = url.indexOf('?') !== -1 ? '&' : '?';
-        url += separator + 'interval=' + encodeURIComponent(interval);
-    }
+    var interval = options.hourInterval || options.interval || 2;
+    var url = LEYZUX_BASE_URL + '/' + latitude + '/' + longitude +
+        '?interval=' + encodeURIComponent(interval);
 
     console.log('Requesting Leyzux Weather from: ' + url);
 

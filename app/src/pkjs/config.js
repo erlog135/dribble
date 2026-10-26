@@ -1,239 +1,228 @@
 module.exports = [
-    {
-      "type": "heading",
-      "defaultValue": "Dribble"
-    },
-    {
-      "type": "section",
-      "items": [
-        {
-          "type": "heading",
-          "defaultValue": "Units"
-        },
-        {
-          "type": "select",
-          "messageKey": "CFG_TEMPERATURE_UNITS",
-          "defaultValue": "F",
-          "label": "Temperature",
-          "options": [
-            {
-              "label": "°F",
-              "value": "F"
-            },
-            {
-              "label": "°C", 
-              "value": "C"
-            }
-          ]
-        },
-        {
-          "type": "select",
-          "messageKey": "CFG_VELOCITY_UNITS",
-          "defaultValue": "mph",
-          "label": "Wind speed",
-          "options": [
-            {
-              "label": "mph",
-              "value": "mph"
-            },
-            {
-              "label": "km/h",
-              "value": "kph"
-            },
-            {
-              "label": "m/s",
-              "value": "m/s"
-            }
-          ]
-        },
-        {
-          "type": "select", 
-          "messageKey": "CFG_DISTANCE_UNITS",
-          "defaultValue": "mi",
-          "label": "Visibility",
-          "options": [
-            {
-              "label": "miles",
-              "value": "mi"
-            },
-            {
-              "label": "kilometers",
-              "value": "km"
-            }
-          ]
-        },
-        {
-          "type": "select",
-          "messageKey": "CFG_PRESSURE_UNITS",
-          "defaultValue": "mb",
-          "label": "Pressure",
-          "options": [
-            {
-              "label": "inHg",
-              "value": "in"
-            },
-            {
-              "label": "mb",
-              "value": "mb"
-            }
-          ]
-        },
-        {
-          "type": "select",
-          "messageKey": "CFG_PRECIPITATION_UNITS",
-          "defaultValue": "in",
-          "label": "Precipitation",
-          "options": [
-            {
-              "label": "in",
-              "value": "in"
-            },
-            {
-              "label": "mm",
-              "value": "mm"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "type": "section",
-      "items": [
-        {
-            "type": "heading",
-            "defaultValue": "Functionality"
-          },
-                  {
-            "type": "select",
-            "messageKey": "CFG_REFRESH_INTERVAL",
-            "defaultValue": 30,
-            "label": "Maximum data age",
-            "options": [
-              {
-                "label": "Maximum data age",
-                "value": [
-                  { 
-                    "label": "20 minutes",
-                    "value": 20 
-                  },
-                  { 
-                    "label": "30 minutes",
-                    "value": 30 
-                  },
-                  { 
-                    "label": "1 hour",
-                    "value": 60 
-                  }
-                ]
-              }
-            ]
+  {
+    "type": "heading",
+    "defaultValue": "Dribble"
+  },
+  {
+    "type": "section",
+    "items": [
+      {
+        "type": "heading",
+        "defaultValue": "Units"
+      },
+      {
+        "type": "select",
+        "messageKey": "CFG_TEMPERATURE_UNITS",
+        "defaultValue": "F",
+        "label": "Temperature",
+        "options": [
+          {
+            "label": "°F",
+            "value": "F"
           },
           {
-            "type": "select",
-            "messageKey": "CFG_DISPLAY_INTERVAL",
-            "defaultValue": 2,
-            "label": "Forecast display interval",
-            "options": [
+            "label": "°C",
+            "value": "C"
+          }
+        ]
+      },
+      {
+        "type": "select",
+        "messageKey": "CFG_VELOCITY_UNITS",
+        "defaultValue": "mph",
+        "label": "Wind speed",
+        "options": [
+          {
+            "label": "mph",
+            "value": "mph"
+          },
+          {
+            "label": "km/h",
+            "value": "kph"
+          },
+          {
+            "label": "m/s",
+            "value": "m/s"
+          }
+        ]
+      },
+      {
+        "type": "select",
+        "messageKey": "CFG_DISTANCE_UNITS",
+        "defaultValue": "mi",
+        "label": "Visibility",
+        "options": [
+          {
+            "label": "miles",
+            "value": "mi"
+          },
+          {
+            "label": "kilometers",
+            "value": "km"
+          }
+        ]
+      },
+      {
+        "type": "select",
+        "messageKey": "CFG_PRESSURE_UNITS",
+        "defaultValue": "mb",
+        "label": "Pressure",
+        "options": [
+          {
+            "label": "inHg",
+            "value": "in"
+          },
+          {
+            "label": "mb",
+            "value": "mb"
+          }
+        ]
+      },
+      {
+        "type": "select",
+        "messageKey": "CFG_PRECIPITATION_UNITS",
+        "defaultValue": "in",
+        "label": "Precipitation",
+        "options": [
+          {
+            "label": "in",
+            "value": "in"
+          },
+          {
+            "label": "mm",
+            "value": "mm"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "section",
+    "items": [
+      {
+        "type": "heading",
+        "defaultValue": "Functionality"
+      },
+      {
+        "type": "select",
+        "messageKey": "CFG_REFRESH_INTERVAL",
+        "defaultValue": 30,
+        "label": "Maximum data age",
+        "options": [
+          {
+            "label": "Maximum data age",
+            "value": [
               {
-                "label": "Forecast display interval",
-                "value": [
-                  { 
-                    "label": "1 hour",
-                    "value": 1 
-                  },
-                  { 
-                    "label": "2 hours",
-                    "value": 2 
-                  }
-                ]
+                "label": "20 minutes",
+                "value": 20
+              },
+              {
+                "label": "30 minutes",
+                "value": 30
+              },
+              {
+                "label": "1 hour",
+                "value": 60
               }
             ]
           }
-      ]
-    },
-    {
-      "type": "section",
-      "items": [
-        {
-          "type": "heading",
-          "defaultValue": "Appearance"
-        },
-        {
-          "type": "toggle",
-          "capabilities": ["NOT_PLATFORM_APLITE"],
-          "messageKey": "CFG_ANIMATE",
-          "label": "Enable animations",
-          "defaultValue": true
-        },
-        {
-          "type": "select",
-          "messageKey": "CFG_WIND_VANE_DIRECTION",
-          "defaultValue": 0,
-          "label": "Wind vane icon points to...",
-          "options": [
-            {
-              "label": "Wind heading",
-              "value": 0
-            },
-            {
-              "label": "Wind origin",
-              "value": 1
-            }
-          ]
-        },
-      ]
-    },
-    {
-      "type": "section",
-      "items": [
-        {
-          "type": "heading",
-          "defaultValue": "Weather Source"
-        },
-        {
-          "type": "select",
-          "messageKey": "CFG_WEATHER_PROVIDER",
-          "defaultValue": "leyzux",
-          "label": "Provider",
-          "options": [
-            {
-              "label": "Leyzux Weather (Proxy)",
-              "value": "leyzux"
-            },
-            {
-              "label": "Open-Meteo",
-              "value": "openmeteo"
-            }
-          ]
-        },
-        {
-          "type": "input",
-          "messageKey": "CFG_LEYZUX_URL",
-          "defaultValue": "",
-          "label": "Leyzux Weather URL",
-          "description": "Base URL for the Leyzux proxy. Coordinates will be appended as /{latitude}/{longitude}.",
-          "attributes": {
-            "placeholder": "https://example.com/weather",
-            "type": "url"
+        ]
+      },
+      {
+        "type": "select",
+        "messageKey": "CFG_DISPLAY_INTERVAL",
+        "defaultValue": 2,
+        "label": "Forecast display interval",
+        "options": [
+          {
+            "label": "Forecast display interval",
+            "value": [
+              {
+                "label": "1 hour",
+                "value": 1
+              },
+              {
+                "label": "2 hours",
+                "value": 2
+              }
+            ]
           }
-        }
-      ]
-    },
-    {
-      "type": "section",
-      "items": [
-        {
-          "type": "heading",
-          "defaultValue": "Attribution"
-        },
-        {
-          "type": "text",
-          "defaultValue": "Weather data provided by <a href='https://open-meteo.com/'>Open-Meteo</a> (CC BY 4.0)."
-        }
-      ]
-    },
-    {
-      "type": "submit",
-      "defaultValue": "Save Settings"
-    }
-  ];
+        ]
+      }
+    ]
+  },
+  {
+    "type": "section",
+    "items": [
+      {
+        "type": "heading",
+        "defaultValue": "Appearance"
+      },
+      {
+        "type": "toggle",
+        "capabilities": ["NOT_PLATFORM_APLITE"],
+        "messageKey": "CFG_ANIMATE",
+        "label": "Enable animations",
+        "defaultValue": true
+      },
+      {
+        "type": "select",
+        "messageKey": "CFG_WIND_VANE_DIRECTION",
+        "defaultValue": 0,
+        "label": "Wind vane icon points to...",
+        "options": [
+          {
+            "label": "Wind heading",
+            "value": 0
+          },
+          {
+            "label": "Wind origin",
+            "value": 1
+          }
+        ]
+      },
+    ]
+  },
+  {
+    "type": "section",
+    "items": [
+      {
+        "type": "heading",
+        "defaultValue": "Weather Source"
+      },
+      {
+        "type": "select",
+        "messageKey": "CFG_WEATHER_PROVIDER",
+        "defaultValue": "leyzux",
+        "label": "Provider",
+        "options": [
+          {
+            "label": "Leyzux Weather",
+            "value": "leyzux"
+          },
+          {
+            "label": "Open-Meteo",
+            "value": "openmeteo"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "section",
+    "items": [
+      {
+        "type": "heading",
+        "defaultValue": "Attribution"
+      },
+      {
+        "type": "text",
+        "defaultValue": "Leyzux Weather forwards packaged data from <a href='https://developer.apple.com/weatherkit/data-source-attribution/'>Apple WeatherKit</a> and <a href='https://openweathermap.org/'>OpenWeather</a>. Open-Meteo weather data is provided by <a href='https://open-meteo.com/'>Open-Meteo</a>."
+      }
+    ]
+  },
+  {
+    "type": "submit",
+    "defaultValue": "Save Settings"
+  }
+];
