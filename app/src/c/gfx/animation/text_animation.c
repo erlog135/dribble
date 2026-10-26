@@ -212,7 +212,7 @@ void text_animation_start(AnimationDirection direction, uint8_t target_hour, con
     } else {
         // For DOWN: incoming time shows hour (target_hour + 1)  
         int incoming_hour_index = target_hour + 1;
-        show_incoming_time = (incoming_hour_index <= 11);
+        show_incoming_time = (incoming_hour_index <= LAST_FORECAST_HOUR);
         ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "DOWN animation to hour %d, incoming hour index: %d, show_incoming_time: %s", 
                 target_hour, incoming_hour_index, show_incoming_time ? "YES" : "NO");
         if (show_incoming_time) {

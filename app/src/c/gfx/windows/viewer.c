@@ -58,11 +58,18 @@ static uint8_t hour_view = 0;
 static uint8_t page_view = VIEW_PAGE_CONDITIONS;
 static uint8_t active_page_view = VIEW_PAGE_NONE;  // Tracks which page's set_*_view(hour) is currently active.
 
+// Data retrieval status line, shown beneath the status bar while it is visible
+static TextLayer* s_status_text_layer;
+static char s_status_text[24] = "";
+
 // Forward declarations
 static void update_view(uint8_t hour, uint8_t page);
 static void apply_page_content(uint8_t hour, uint8_t page);
 static GColor get_background_color_for_forecast(uint8_t hour, uint8_t page);
 static void draw_page_images(Layer* layer, GContext* ctx);
+static void prv_update_status_visibility(void);
+static void prv_window_load(Window *window);
+static void prv_window_unload(Window *window);
 
 // Helper function to check if animations are enabled
 static bool animations_enabled(void) {
@@ -111,7 +118,7 @@ static void apply_page_content(uint8_t hour, uint8_t page) {
     const char* content_text = "";
     switch (page) {
         case VIEW_PAGE_CONDITIONS:
-            content_text = (hour == 0 && precipitation.precipitation_type > 0)
+            content_text = (hour == forecast_now_index && precipitation.precipitation_type > 0)
                 ? precipitation.precipitation_string
                 : forecast_hours[hour].conditions_string;
             break;
@@ -145,7 +152,7 @@ static void apply_page_content(uint8_t hour, uint8_t page) {
 // Helper function to update only images and content text for animation,
 // without touching the time text (the animation system owns that).
 static void update_images_and_content_for_animation(uint8_t hour, uint8_t page) {
-    if (hour > 11 || page > 2) {
+    if (hour > LAST_FORECAST_HOUR || page > 2) {
         return;
     }
     apply_page_content(hour, page);
@@ -254,7 +261,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
 #ifndef PBL_PLATFORM_APLITE
       // Hide any overlay that won't be visible at the destination hour before
       // animations start so it doesn't linger through the transition.
-      if (hour_view == 11 && s_fin_layer) {
+      if (hour_view == LAST_FORECAST_HOUR && s_fin_layer) {
         layer_set_hidden(s_fin_layer, true);
       }
 
@@ -285,7 +292,7 @@ static void prv_up_click_handler(ClickRecognizerRef recognizer, void *context) {
   // Wrap: UP at hour 0 jumps straight to hour 11 without animation. The jump is
   // intentionally un-animated because scrolling 11 hours in the "up" direction
   // would be disorienting; prefer a snap.
-  hour_view = 11;
+  hour_view = LAST_FORECAST_HOUR;
   update_view(hour_view, page_view);
   window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour_view, page_view));
 }
@@ -324,7 +331,7 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context)
     if (animations_enabled() && animation_is_busy()) {
       return;
     }
-    if (hour_view < 11) {
+    if (hour_view < LAST_FORECAST_HOUR) {
       hour_view++;
       update_view(hour_view, page_view);
       window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour_view, page_view));
@@ -337,12 +344,12 @@ static void prv_down_click_handler(ClickRecognizerRef recognizer, void *context)
     return;
   }
 
-  if(hour_view < 11) {
+  if(hour_view < LAST_FORECAST_HOUR) {
     if(animations_enabled()) {
 #ifndef PBL_PLATFORM_APLITE
       // Hide any overlay that won't be visible at the destination hour before
       // animations start so it doesn't linger through the transition.
-      if (hour_view == 0 && s_status_bar) {
+      if (hour_view == forecast_now_index && s_status_bar) {
         layer_set_hidden(status_bar_layer_get_layer(s_status_bar), true);
       }
 
@@ -452,8 +459,18 @@ static void init_layers(Layer* window_layer) {
   // Status bar overlay – shown only on hour 0
   s_status_bar = status_bar_layer_create();
   status_bar_layer_set_colors(s_status_bar, GColorClear, GColorBlack);
-  layer_set_hidden(status_bar_layer_get_layer(s_status_bar), hour_view != 0);
+  layer_set_hidden(status_bar_layer_get_layer(s_status_bar), hour_view != forecast_now_index);
   layer_add_child(window_layer, status_bar_layer_get_layer(s_status_bar));
+
+  // Retrieval status line directly beneath the status bar
+  s_status_text_layer = text_layer_create(GRect(0, STATUS_BAR_LAYER_HEIGHT, LAYOUT_W, 18));
+  text_layer_set_text(s_status_text_layer, s_status_text);
+  text_layer_set_background_color(s_status_text_layer, GColorClear);
+  text_layer_set_text_color(s_status_text_layer, GColorBlack);
+  text_layer_set_font(s_status_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+  text_layer_set_text_alignment(s_status_text_layer, GTextAlignmentCenter);
+  layer_add_child(window_layer, text_layer_get_layer(s_status_text_layer));
+  prv_update_status_visibility();
 
   // Fin banner overlay – shown only on hour 11. Bottom edge flush with text
   // (same LAYOUT_PAD_B margin used by LAYOUT_NEXT_TIME_BOUNDS).
@@ -464,7 +481,7 @@ static void init_layers(Layer* window_layer) {
     int16_t fin_y = LAYOUT_H - LAYOUT_PAD_B - fin_size.h + FIN_IMAGE_TOP_OFFSET;
     s_fin_layer = layer_create(GRect(fin_x, fin_y, fin_size.w, fin_size.h));
     layer_set_update_proc(s_fin_layer, draw_fin_image);
-    layer_set_hidden(s_fin_layer, hour_view != 11);
+    layer_set_hidden(s_fin_layer, hour_view != LAST_FORECAST_HOUR);
     layer_add_child(window_layer, s_fin_layer);
   }
 
@@ -477,13 +494,13 @@ static GColor get_background_color_for_forecast(uint8_t hour, uint8_t page) {
   return GColorWhite;
   #endif
 
-  if (hour > 11) {
+  if (hour > LAST_FORECAST_HOUR) {
     return GColorWhite;
   }
 
   switch (page) {
     case VIEW_PAGE_CONDITIONS:
-      if (hour == 0 && precipitation.precipitation_type > 0) {
+      if (hour == forecast_now_index && precipitation.precipitation_type > 0) {
         // Cold precipitation types (snow=3, sleet=4, hail=5) use the snow color;
         // warm types use the rain color.
         if (precipitation.precipitation_type >= 3 && precipitation.precipitation_type <= 5) {
@@ -512,9 +529,9 @@ static GColor get_background_color_for_forecast(uint8_t hour, uint8_t page) {
   }
 }
 
-// Updates the view for the given hour (0-11) and page.
+// Updates the view for the given hour (0..forecast_hour_count-1) and page.
 static void update_view(uint8_t hour, uint8_t page) {
-  if (hour > 11 || page > 2) {
+  if (hour > LAST_FORECAST_HOUR || page > 2) {
     return;
   }
 
@@ -522,14 +539,15 @@ static void update_view(uint8_t hour, uint8_t page) {
   // Prev is blanked at the first hour, next is blanked at the last hour.
   text_layer_set_text(prev_time_layer, (hour == 0)  ? "" : forecast_hours[hour - 1].hour_string);
   text_layer_set_text(current_time_layer, forecast_hours[hour].hour_string);
-  text_layer_set_text(next_time_layer, (hour == 11) ? "" : forecast_hours[hour + 1].hour_string);
+  text_layer_set_text(next_time_layer, (hour >= LAST_FORECAST_HOUR) ? "" : forecast_hours[hour + 1].hour_string);
 
   if (s_status_bar) {
-    layer_set_hidden(status_bar_layer_get_layer(s_status_bar), hour != 0);
+    layer_set_hidden(status_bar_layer_get_layer(s_status_bar), hour != forecast_now_index);
   }
   if (s_fin_layer) {
-    layer_set_hidden(s_fin_layer, hour != 11);
+    layer_set_hidden(s_fin_layer, hour != LAST_FORECAST_HOUR);
   }
+  prv_update_status_visibility();
 
   apply_page_content(hour, page);
 }
@@ -597,6 +615,10 @@ static void prv_window_unload(Window *window) {
     status_bar_layer_destroy(s_status_bar);
     s_status_bar = NULL;
   }
+  if (s_status_text_layer) {
+    text_layer_destroy(s_status_text_layer);
+    s_status_text_layer = NULL;
+  }
   if (s_fin_layer) {
     layer_destroy(s_fin_layer);
     s_fin_layer = NULL;
@@ -651,6 +673,9 @@ void viewer_update_view(uint8_t hour, uint8_t page) {
   hour_view = hour;
   page_view = page;
   update_view(hour, page);
+  if (s_viewer_window) {
+    window_set_background_color(s_viewer_window, get_background_color_for_forecast(hour, page));
+  }
 }
 
 uint8_t viewer_get_current_hour(void) {
@@ -666,3 +691,43 @@ void viewer_set_current_view(uint8_t hour, uint8_t page) {
   page_view = page;
   update_view(hour, page);
 }
+
+static void prv_update_status_visibility(void) {
+  if (!s_status_text_layer) {
+    return;
+  }
+  bool visible = s_status_text[0] != '\0' && hour_view == forecast_now_index;
+  layer_set_hidden(text_layer_get_layer(s_status_text_layer), !visible);
+}
+
+void viewer_set_status(const char* text) {
+  if (text) {
+    strncpy(s_status_text, text, sizeof(s_status_text) - 1);
+    s_status_text[sizeof(s_status_text) - 1] = '\0';
+  } else {
+    s_status_text[0] = '\0';
+  }
+  if (s_status_text_layer) {
+    text_layer_set_text(s_status_text_layer, s_status_text);
+    prv_update_status_visibility();
+  }
+}
+
+bool viewer_reload(uint8_t hour, uint8_t page) {
+  if (!s_viewer_window) {
+    return false;
+  }
+  if (animations_enabled() && animation_is_busy()) {
+    return false;
+  }
+
+  // Page image caches are built from forecast_hours when the layers are
+  // created, so rebuilding them is required for new data (new icons etc.).
+  hour_view = (hour > LAST_FORECAST_HOUR) ? LAST_FORECAST_HOUR : hour;
+  page_view = page;
+  prv_window_unload(s_viewer_window);
+  prv_window_load(s_viewer_window);
+  update_view(hour_view, page_view);
+  return true;
+}
+

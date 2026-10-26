@@ -20,7 +20,6 @@ var weatherProvider = "leyzux"; // "leyzux" or "openmeteo"
 
 // Debug configuration
 var debug = false;
-var checkCache = true;
 
 function debugLog(message) {
     if (debug) {
@@ -47,7 +46,7 @@ function loadSettings() {
 
 Pebble.addEventListener("ready",
     function (e) {
-        debugLog("PebbleKit JS Ready - Starting automatic weather fetch");
+        debugLog("PebbleKit JS Ready");
         language = Pebble.getActiveWatchInfo().language;
 
         loadSettings();
@@ -56,28 +55,28 @@ Pebble.addEventListener("ready",
         debugLog("Sending JSReady signal to C app");
         Pebble.sendAppMessage({ "JS_READY": 1 }, function () {
             debugLog("JSReady signal sent successfully");
-            if (checkCache) {
-                checkCacheOrFetchWeather();
-            } else {
-                getLocation();
-            }
         }, function (e) {
             debugLog("JSReady signal failed: " + JSON.stringify(e));
-            if (checkCache) {
-                checkCacheOrFetchWeather();
-            } else {
-                getLocation();
-            }
         });
     }
 );
+
+// Listen for messages from the watch (such as requests for fresh weather data)
+Pebble.addEventListener("appmessage", function (e) {
+    debugLog("Received AppMessage: " + JSON.stringify(e.payload));
+    if (!e || !e.payload) { return; }
+    var reqKey = keys.REQUEST_DATA;
+    if ((reqKey && e.payload[reqKey] !== undefined) || e.payload.REQUEST_DATA !== undefined) {
+        debugLog("Received REQUEST_DATA from watch, fetching fresh weather");
+        getLocation();
+    }
+});
 
 // When Clay configuration is closed/saved, refresh settings and weather
 Pebble.addEventListener("webviewclosed", function (e) {
     if (!e || !e.response) { return; }
     debugLog("Clay settings updated, reloading settings and refreshing weather");
     loadSettings();
-    msgproc.clearWeatherCache();
     getLocation();
 });
 
@@ -101,31 +100,7 @@ function filledArray(length, value) {
     return arr;
 }
 
-// Check cache first, then fetch fresh data if needed
-function checkCacheOrFetchWeather() {
-    debugLog("Checking cached weather data...");
 
-    var cachedData = false;//msgproc.getCachedWeatherData(refreshInterval);
-
-    if (cachedData) {
-        debugLog("Using cached weather data");
-        forecastHours = cachedData.hourPackages;
-        precipitation = cachedData.precipitationData;
-
-        if (forecastHours && forecastHours.length > 0) {
-            if (precipitation === null) {
-                precipitation = msgproc.packPrecipitation(0, filledArray(24, 0));
-            }
-            sendAllWeatherData();
-        } else {
-            debugLog("Cached data invalid, fetching fresh data");
-            getLocation();
-        }
-    } else {
-        debugLog("No valid cached data found, fetching fresh weather data");
-        getLocation();
-    }
-}
 
 // Get current location using geolocation
 function getLocation() {
@@ -207,10 +182,6 @@ function handleWeatherSuccess(result) {
     precipitation = result.precipitation;
 
     if (forecastHours && forecastHours.length > 0) {
-        // Cache weather data
-        msgproc.saveWeatherCache(forecastHours);
-        msgproc.savePrecipitationCache(precipitation);
-
         // Send all weather data to watch
         sendAllWeatherData();
 

@@ -29,7 +29,9 @@ static const char* PRECIPITATION_STRINGS[] = {
 };
 
 // Array of forecast hours
-ForecastHour forecast_hours[12];
+ForecastHour forecast_hours[MAX_FORECAST_HOURS];
+uint8_t forecast_hour_count = MAX_FORECAST_HOURS;
+uint8_t forecast_now_index = 0;
 
 // Next-hour precipitation (single definition; declared extern in weather.h)
 Precipitation precipitation;

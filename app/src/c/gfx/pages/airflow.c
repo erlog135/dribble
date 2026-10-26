@@ -84,7 +84,7 @@ void set_airflow_view(int hour) {
         *current_image_ref = (vane_dir >= 0 && vane_dir < 8) ? wind_vane_images[vane_dir] : NULL;
 
         // Next hour wind-speed icon, if any.
-        if (hour < 11) {
+        if (hour < LAST_FORECAST_HOUR) {
             uint32_t next_resource_id = forecast_hours[hour+1].wind_speed_resource_id;
             int next_index = get_wind_speed_image_index(next_resource_id);
             *next_image_ref = (next_index >= 0) ? wind_speed_images[next_index] : NULL;

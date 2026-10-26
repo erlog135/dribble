@@ -5,6 +5,7 @@
 #include "../../utils/msgproc.h"
 #include "../../utils/demo.h"
 #include "../../utils/prefs.h"
+#include "../../utils/cache.h"
 
 // Window and UI elements (window itself is owned by main.c)
 static Layer* image_layer;
@@ -89,8 +90,9 @@ static void handle_data_response(DictionaryIterator *iter) {
     // Check for JSReady signal from PebbleKit JS
     Tuple* js_ready_tuple = dict_find(iter, MESSAGE_KEY_JS_READY);
     if (js_ready_tuple) {
-        UTIL_LOG(APP_LOG_LEVEL_DEBUG, "Received JSReady signal, weather data will arrive automatically");
+        UTIL_LOG(APP_LOG_LEVEL_DEBUG, "Received JSReady signal, requesting weather data");
         splash_set_status_text("Retrieving...");
+        weather_request_data();
         return;
     }
 
@@ -111,8 +113,10 @@ static void handle_data_response(DictionaryIterator *iter) {
     // Handle all hourly data in a single 120-byte message
     Tuple* hour_data_tuple = dict_find(iter, MESSAGE_KEY_HOUR_DATA);
     if (hour_data_tuple) {
-        // Unpack all 12 hours from the 120-byte binary blob
-        unpack_all_hours((uint8_t*)hour_data_tuple->value->data, forecast_hours);
+        // Unpack all valid hours from the 120-byte binary blob
+        forecast_hour_count = unpack_all_hours((uint8_t*)hour_data_tuple->value->data, forecast_hours);
+        forecast_now_index = 0;
+        cache_save_hours((uint8_t*)hour_data_tuple->value->data);
 
         splash_set_status_text("Loading...");
         UTIL_LOG(APP_LOG_LEVEL_DEBUG, "All hourly data received (120 bytes), waiting for precipitation data");
@@ -122,6 +126,7 @@ static void handle_data_response(DictionaryIterator *iter) {
     Tuple* precipitation_package_tuple = dict_find(iter, MESSAGE_KEY_PRECIPITATION_PACKAGE);
     if (precipitation_package_tuple) {
         unpack_precipitation((PrecipitationPackage)precipitation_package_tuple->value->data, &precipitation);
+        cache_save_precip((uint8_t*)precipitation_package_tuple->value->data);
 
         // All data received – cancel timeout and complete loading
         cancel_timeout();

@@ -263,7 +263,7 @@ static void progressive_image_layer_update_proc(Layer* layer, GContext* ctx) {
             // Check if this should use small axis positioning (conditions page, hour 1, with precipitation)
             GPoint draw_pos = LAYOUT_PREV_ICON_POS;
             if (s_image_animation_context.current_page == 0 && // VIEW_PAGE_CONDITIONS
-                s_image_animation_context.current_hour == 1 &&
+                s_image_animation_context.current_hour == forecast_now_index + 1 &&
                 precipitation.precipitation_type > 0) {
                 // Use small axis position for precipitation display
                 draw_pos = LAYOUT_AXIS_SM_POS;
@@ -276,7 +276,7 @@ static void progressive_image_layer_update_proc(Layer* layer, GContext* ctx) {
             // Check if this should use axis positioning (conditions page, hour 0, with precipitation)
             GPoint draw_pos = LAYOUT_CUR_ICON_POS;
             if (s_image_animation_context.current_page == 0 && // VIEW_PAGE_CONDITIONS
-                s_image_animation_context.current_hour == 0 &&
+                s_image_animation_context.current_hour == forecast_now_index &&
                 precipitation.precipitation_type > 0) {
                 // Use axis position for precipitation display
                 draw_pos = LAYOUT_AXIS_LG_POS;
@@ -451,10 +451,10 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
     bool is_experiential_page = (page == 2); // VIEW_PAGE_EXPERIENTIAL
     int offset_idx_1 = 0, offset_idx_2 = 0;
     if (is_experiential_page) {
-        // Defensive: clamp hour to 0-11
-        int h = (hour > 11 ? 11 : hour);
+        // Defensive: clamp hour to the valid range
+        int h = (hour > LAST_FORECAST_HOUR ? LAST_FORECAST_HOUR : hour);
         int prev_h = (h > 0) ? h - 1 : 0;
-        int next_h = (h < 11) ? h + 1 : 11;
+        int next_h = (h < LAST_FORECAST_HOUR) ? h + 1 : LAST_FORECAST_HOUR;
         if (direction == ANIMATION_DIRECTION_UP) {
             // prev (25px) → current (50px): use current hour's icon
             // current (50px) → next (25px): use next hour's icon
@@ -482,7 +482,7 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
         // Adjust for axis image positioning if needed
         if (page == 0 && precipitation.precipitation_type > 0) { // VIEW_PAGE_CONDITIONS with precipitation
             // UP direction from hour 1 to hour 0: prev (small axis from hour 1) → current (large axis at hour 0)
-            if (hour == 0) {
+            if (hour == forecast_now_index) {
                 from_pos_1 = LAYOUT_AXIS_SM_POS;
                 to_pos_1 = LAYOUT_AXIS_LG_POS;
             }
@@ -500,7 +500,7 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
 
         // Adjust dimensions for precipitation scenarios (UP direction)
         if (page == 0 && precipitation.precipitation_type > 0) { // VIEW_PAGE_CONDITIONS with precipitation
-            if (hour == 0) {
+            if (hour == forecast_now_index) {
                 to_width_1 = LAYOUT_PRECIP_W;
                 to_height_1 = LAYOUT_PRECIP_H;
             }
@@ -515,7 +515,7 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
 
         // Adjust for axis image positioning if needed
         if (page == 0 && precipitation.precipitation_type > 0) { // VIEW_PAGE_CONDITIONS with precipitation
-            if (hour == 0) {
+            if (hour == forecast_now_index) {
                 from_pos_2 = LAYOUT_CUR_ICON_POS;
                 // to_pos_2 stays as normal next position
             }
@@ -550,7 +550,7 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
         // Adjust for axis image positioning if needed
         if (page == 0 && precipitation.precipitation_type > 0) { // VIEW_PAGE_CONDITIONS with precipitation
             // DOWN direction from hour 0 to hour 1: stored images are from hour 0
-            if (hour == 1) {
+            if (hour == forecast_now_index + 1) {
                 from_pos_2 = LAYOUT_AXIS_LG_POS;
                 to_pos_2 = LAYOUT_AXIS_SM_POS;
             }
@@ -568,10 +568,10 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
 
         // Adjust dimensions for precipitation scenarios
         if (page == 0 && precipitation.precipitation_type > 0) { // VIEW_PAGE_CONDITIONS with precipitation
-            if (hour == 0) {
+            if (hour == forecast_now_index) {
                 to_width_1 = LAYOUT_PRECIP_W;
                 to_height_1 = LAYOUT_PRECIP_H;
-            } else if (hour == 1) {
+            } else if (hour == forecast_now_index + 1) {
                 from_width_2 = LAYOUT_PRECIP_W;
                 from_height_2 = LAYOUT_PRECIP_H;
             }

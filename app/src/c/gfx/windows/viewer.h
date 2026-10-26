@@ -57,3 +57,25 @@ uint8_t viewer_get_current_page(void);
  * @param page Page type to set (0=conditions, 1=airflow, 2=experiential)
  */
 void viewer_set_current_view(uint8_t hour, uint8_t page);
+
+/**
+ * @brief Sets the data retrieval status line shown beneath the status bar
+ *
+ * The line is only visible while the status bar is visible (current-hour view).
+ *
+ * @param text Status text, or NULL / "" to hide it
+ */
+void viewer_set_status(const char* text);
+
+/**
+ * @brief Rebuilds the viewer's layers from the current forecast data
+ *
+ * Used when new weather data arrives while the viewer is open (icon caches
+ * are built from the data). Fails (returns false) if an animation is running.
+ *
+ * @param hour Hour index to show (clamped to the available hours)
+ * @param page Page to show
+ * @return true if reloaded, false if it should be retried later
+ */
+bool viewer_reload(uint8_t hour, uint8_t page);
+

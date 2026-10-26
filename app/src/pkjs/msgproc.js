@@ -1,6 +1,3 @@
-var WEATHER_CACHE_KEY = 'weather_cache_data';
-var PRECIPITATION_CACHE_KEY = 'precipitation_cache_data';
-
 // Debug configuration
 var debug = false;
 
@@ -163,112 +160,8 @@ function packAllHourData(hourPackages) {
     return result;
 }
 
-/**
- * Saves weather hour packages to localStorage with timestamp
- * @param {Array} hourPackages - Array of packed weather hour data
- */
-function saveWeatherCache(hourPackages) {
-    try {
-        var cacheData = {
-            timestamp: Date.now(),
-            hourPackages: hourPackages
-        };
-        localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(cacheData));
-        debugLog('Weather data cached successfully');
-    } catch (error) {
-        debugLog('Failed to save weather cache: ' + error.message);
-    }
-}
-
-/**
- * Saves precipitation data to localStorage with timestamp
- * @param {Array} precipitationData - Packed precipitation data
- */
-function savePrecipitationCache(precipitationData) {
-    try {
-        var cacheData = {
-            timestamp: Date.now(),
-            precipitationData: precipitationData
-        };
-        localStorage.setItem(PRECIPITATION_CACHE_KEY, JSON.stringify(cacheData));
-        debugLog('Precipitation data cached successfully');
-    } catch (error) {
-        debugLog('Failed to save precipitation cache: ' + error.message);
-    }
-}
-
-/**
- * Retrieves cached weather data if it exists and is within the specified age limit
- * @param {number} maxAgeMinutes - Maximum age of cached data in minutes
- * @returns {Object|null} - Object with hourPackages and precipitationData, or null if no valid cache
- */
-function getCachedWeatherData(maxAgeMinutes) {
-    try {
-        // Get weather cache
-        var weatherCacheStr = localStorage.getItem(WEATHER_CACHE_KEY);
-        var precipitationCacheStr = localStorage.getItem(PRECIPITATION_CACHE_KEY);
-
-        if (!weatherCacheStr) {
-            debugLog('No weather cache found');
-            return null;
-        }
-
-        var weatherCache = JSON.parse(weatherCacheStr);
-        var now = Date.now();
-        var maxAgeMs = maxAgeMinutes * 60 * 1000;
-        var weatherAge = now - weatherCache.timestamp;
-
-        if (weatherAge > maxAgeMs) {
-            debugLog('Weather cache expired (age: ' + Math.round(weatherAge / (60 * 1000)) + ' minutes, max: ' + maxAgeMinutes + ' minutes)');
-            return null;
-        }
-
-        var result = {
-            hourPackages: weatherCache.hourPackages,
-            precipitationData: null
-        };
-
-        // Check precipitation cache if it exists
-        if (precipitationCacheStr) {
-            var precipitationCache = JSON.parse(precipitationCacheStr);
-            var precipitationAge = now - precipitationCache.timestamp;
-
-            if (precipitationAge <= maxAgeMs) {
-                result.precipitationData = precipitationCache.precipitationData;
-                debugLog('Using cached precipitation data (age: ' + Math.round(precipitationAge / (60 * 1000)) + ' minutes)');
-            } else {
-                debugLog('Precipitation cache expired (age: ' + Math.round(precipitationAge / (60 * 1000)) + ' minutes)');
-            }
-        }
-
-        debugLog('Using cached weather data (age: ' + Math.round(weatherAge / (60 * 1000)) + ' minutes)');
-        return result;
-
-    } catch (error) {
-        debugLog('Failed to retrieve weather cache: ' + error.message);
-        return null;
-    }
-}
-
-/**
- * Clears all weather-related cache data
- */
-function clearWeatherCache() {
-    try {
-        localStorage.removeItem(WEATHER_CACHE_KEY);
-        localStorage.removeItem(PRECIPITATION_CACHE_KEY);
-        debugLog('Weather cache cleared');
-    } catch (error) {
-        debugLog('Failed to clear weather cache: ' + error.message);
-    }
-}
-
 module.exports = {
     packHourData: packHourData,
     packAllHourData: packAllHourData,
-    packPrecipitation: packPrecipitation,
-    saveWeatherCache: saveWeatherCache,
-    savePrecipitationCache: savePrecipitationCache,
-    getCachedWeatherData: getCachedWeatherData,
-    clearWeatherCache: clearWeatherCache
+    packPrecipitation: packPrecipitation
 };

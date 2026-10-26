@@ -112,7 +112,7 @@ void set_conditions_view(int hour) {
         // Previous hour condition icon. For hour 1 following a precipitation
         // hour 0, show the small axis image instead of a weather icon.
         if (hour > 0) {
-            if (hour == 1 && precipitation.precipitation_type > 0) {
+            if (hour == forecast_now_index + 1 && precipitation.precipitation_type > 0) {
                 *prev_image_ref = axis_small_image;
             } else {
                 *prev_image_ref = condition_images_25px[forecast_hours[hour-1].conditions_icon];
@@ -123,20 +123,20 @@ void set_conditions_view(int hour) {
 
         // Current hour condition icon. On hour 0 with precipitation we show the
         // large axis beneath the graph instead of a weather icon.
-        if (hour == 0 && precipitation.precipitation_type > 0) {
+        if (hour == forecast_now_index && precipitation.precipitation_type > 0) {
             *current_image_ref = axis_large_image;
         } else {
             *current_image_ref = condition_images_50px[forecast_hours[hour].conditions_icon];
         }
 
         // Next hour condition icon.
-        if (hour < 11) {
+        if (hour < LAST_FORECAST_HOUR) {
             *next_image_ref = condition_images_25px[forecast_hours[hour+1].conditions_icon];
         } else {
             *next_image_ref = NULL;
         }
 
-        if (hour == 0 && precipitation.precipitation_type > 0) {
+        if (hour == forecast_now_index && precipitation.precipitation_type > 0) {
             graph_draw_timer = app_timer_register(300, graph_draw_timer_callback, NULL);
         }
     }
@@ -186,7 +186,7 @@ void draw_conditions(Layer* layer, GContext* ctx) {
 
     // Only draw the precipitation graph if hour 0 has precipitation and the
     // stagger timer has elapsed.
-    if (selected_hour != 0 || precipitation.precipitation_type <= 0 || !show_graph) {
+    if (selected_hour != forecast_now_index || precipitation.precipitation_type <= 0 || !show_graph) {
         return;
     }
 

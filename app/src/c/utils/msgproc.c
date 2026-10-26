@@ -5,15 +5,29 @@
 #include <string.h>
 #include <time.h>
 
-// Unpack all 12 hour packages from a single 120-byte binary blob
-void unpack_all_hours(uint8_t* data, ForecastHour* forecast_hours_array) {
-    for (int i = 0; i < 12; i++) {
+uint8_t count_valid_hours(const uint8_t* data) {
+    uint8_t count = 1;
+    for (int i = 1; i < MAX_FORECAST_HOURS; i++) {
+        // Hours must be strictly increasing; zero padding from JS breaks that
+        if (data[i * 10] <= data[(i - 1) * 10]) {
+            break;
+        }
+        count++;
+    }
+    return count;
+}
+
+// Unpack all hour packages from a single 120-byte binary blob.
+// Returns the number of valid (non-padding) hours unpacked.
+uint8_t unpack_all_hours(uint8_t* data, ForecastHour* forecast_hours_array) {
+    uint8_t count = count_valid_hours(data);
+    for (int i = 0; i < count; i++) {
         // Each hour package is 10 bytes, starting at offset i * 10
         unpack_hour_package(&data[i * 10], &forecast_hours_array[i]);
     }
+    return count;
 }
 
-// TODO: build wind icons here
 void unpack_hour_package(HourPackage weather_data, ForecastHour* forecast_hour) {
     // Relative hour (uint8) offset from current time, processed on watch
     uint8_t relative_hour = weather_data[0];
@@ -21,7 +35,11 @@ void unpack_hour_package(HourPackage weather_data, ForecastHour* forecast_hour) 
     time_t now = time(NULL);
     struct tm *local_time = localtime(&now);
     int current_hour = local_time ? local_time->tm_hour : 0;
-    int hour = (current_hour + relative_hour) % 24;
+    unpack_hour_package_at(weather_data, forecast_hour, (current_hour + relative_hour) % 24);
+}
+
+// TODO: build wind icons here
+void unpack_hour_package_at(HourPackage weather_data, ForecastHour* forecast_hour, int hour) {
 
     // Temperature (int8)
     int temp = (int8_t)weather_data[1];
@@ -284,10 +302,39 @@ void unpack_precipitation(PrecipitationPackage weather_data, Precipitation* prec
         }
     }
 
-    // Get the temperature from the first forecast hour
+    refresh_precipitation_string(precipitation);
+}
+
+void refresh_precipitation_string(Precipitation* precipitation) {
+    // Get the temperature from the current-hour forecast entry
     char temp_line[MAX_STRING_LENGTH];
-    strncpy(temp_line, forecast_hours[0].conditions_string, strchr(forecast_hours[0].conditions_string, '\n') - forecast_hours[0].conditions_string);
-    temp_line[strchr(forecast_hours[0].conditions_string, '\n') - forecast_hours[0].conditions_string] = '\0';
+    const char* conditions = forecast_hours[forecast_now_index].conditions_string;
+    const char* newline = strchr(conditions, '\n');
+    size_t temp_len = newline ? (size_t)(newline - conditions) : strlen(conditions);
+    if (temp_len > MAX_STRING_LENGTH - 1) {
+        temp_len = MAX_STRING_LENGTH - 1;
+    }
+    memcpy(temp_line, conditions, temp_len);
+    temp_line[temp_len] = '\0';
 
     format_precipitation_string(precipitation, temp_line);
 }
+
+bool weather_request_data(void) {
+    DictionaryIterator *iter;
+    AppMessageResult result = app_message_outbox_begin(&iter);
+    if (result != APP_MSG_OK) {
+        UTIL_LOG(APP_LOG_LEVEL_ERROR, "Outbox begin failed: %d", (int)result);
+        return false;
+    }
+    dict_write_uint8(iter, MESSAGE_KEY_REQUEST_DATA, 1);
+    dict_write_end(iter);
+    result = app_message_outbox_send();
+    if (result != APP_MSG_OK) {
+        UTIL_LOG(APP_LOG_LEVEL_ERROR, "Outbox send failed: %d", (int)result);
+        return false;
+    }
+    UTIL_LOG(APP_LOG_LEVEL_DEBUG, "Sent REQUEST_DATA to PKJS");
+    return true;
+}
+

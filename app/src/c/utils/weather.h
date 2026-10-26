@@ -76,8 +76,23 @@ typedef struct Precipitation{
     uint8_t precipitation_intensity[PRECIPITATION_INTERVALS];
 } Precipitation;
 
+// Maximum number of forecast hours (array capacity)
+#define MAX_FORECAST_HOURS 12
+
 // Array of forecast hours
-extern ForecastHour forecast_hours[12];
+extern ForecastHour forecast_hours[MAX_FORECAST_HOURS];
+
+// Number of valid entries in forecast_hours (may be fewer than 12 when stale
+// cached hours were trimmed)
+extern uint8_t forecast_hour_count;
+
+// Index of the entry representing the current hour. Always 0 for live data;
+// may be >0 when the cache kept the previous hour(s). Precipitation details
+// belong to this entry.
+extern uint8_t forecast_now_index;
+
+// Index of the last valid forecast hour
+#define LAST_FORECAST_HOUR ((forecast_hour_count) > 0 ? (forecast_hour_count) - 1 : 0)
 
 //next hour precipitation
 extern Precipitation precipitation;

@@ -46,7 +46,7 @@ void set_experiential_view(int hour) {
         : experiential_images_50px[current_experiential_icon - 1];
 
     // Next hour experiential icon.
-    if (hour < 11) {
+    if (hour < LAST_FORECAST_HOUR) {
         uint8_t next = forecast_hours[hour + 1].experiential_icon;
         *next_image_ref = (next == 0) ? NULL : experiential_images_25px[next - 1];
     } else {

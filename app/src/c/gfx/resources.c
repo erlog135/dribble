@@ -137,7 +137,7 @@ GDrawCommandImage** init_25px_condition_images() {
     
     // Scan forecast_hours to find which condition icons are actually used
     bool used[NUM_WEATHER_CONDITIONS] = {false};
-    for (int hour = 0; hour < 12; ++hour) {
+    for (int hour = 0; hour < forecast_hour_count; ++hour) {
         uint8_t icon = forecast_hours[hour].conditions_icon;
         if (icon < NUM_WEATHER_CONDITIONS) {
             used[icon] = true;
@@ -170,7 +170,7 @@ GDrawCommandImage** init_50px_condition_images() {
     
     // Scan forecast_hours to find which condition icons are actually used
     bool used[NUM_WEATHER_CONDITIONS] = {false};
-    for (int hour = 0; hour < 12; ++hour) {
+    for (int hour = 0; hour < forecast_hour_count; ++hour) {
         uint8_t icon = forecast_hours[hour].conditions_icon;
         if (icon < NUM_WEATHER_CONDITIONS) {
             used[icon] = true;
@@ -238,7 +238,7 @@ GDrawCommandImage** init_wind_vane_images() {
     
     // Scan forecast_hours to find which wind directions are actually used
     bool used[8] = {false};
-    for (int hour = 0; hour < 12; ++hour) {
+    for (int hour = 0; hour < forecast_hour_count; ++hour) {
         int8_t dir = forecast_hours[hour].wind_direction;
         if (dir >= 0 && dir < 8) {
             used[dir] = true;
@@ -279,7 +279,7 @@ GDrawCommandImage** init_wind_speed_images() {
     
     // Scan forecast_hours to find which wind speed resource IDs are actually used
     bool used[24] = {false};
-    for (int hour = 0; hour < 12; ++hour) {
+    for (int hour = 0; hour < forecast_hour_count; ++hour) {
         uint32_t resource_id = forecast_hours[hour].wind_speed_resource_id;
         if (resource_id != 0) {
             // Calculate index from resource ID
@@ -354,7 +354,7 @@ GDrawCommandImage** init_25px_experiential_images() {
     // Scan forecast_hours to find which experiential icons are actually used
     // Note: experiential_icon values are 1-7 (0 means none), but arrays are 0-indexed
     bool used[NUM_EXPERIENTIAL_RESOURCES] = {false};
-    for (int hour = 0; hour < 12; ++hour) {
+    for (int hour = 0; hour < forecast_hour_count; ++hour) {
         uint8_t icon = forecast_hours[hour].experiential_icon;
         if (icon > 0 && icon <= NUM_EXPERIENTIAL_RESOURCES) {
             used[icon - 1] = true;  // Convert 1-based icon to 0-based array index
@@ -382,7 +382,7 @@ GDrawCommandImage** init_50px_experiential_images() {
     // Scan forecast_hours to find which experiential icons are actually used
     // Note: experiential_icon values are 1-7 (0 means none), but arrays are 0-indexed
     bool used[NUM_EXPERIENTIAL_RESOURCES] = {false};
-    for (int hour = 0; hour < 12; ++hour) {
+    for (int hour = 0; hour < forecast_hour_count; ++hour) {
         uint8_t icon = forecast_hours[hour].experiential_icon;
         if (icon > 0 && icon <= NUM_EXPERIENTIAL_RESOURCES) {
             used[icon - 1] = true;  // Convert 1-based icon to 0-based array index
