@@ -155,6 +155,7 @@ static void apply_page_content(uint8_t hour, uint8_t page) {
     layer_mark_dirty(images_layer);
 }
 
+#ifndef PBL_PLATFORM_APLITE
 // Helper function to update only images and content text for animation,
 // without touching the time text (the animation system owns that).
 static void update_images_and_content_for_animation(uint8_t hour, uint8_t page) {
@@ -195,6 +196,7 @@ static void background_animation_complete_hour(void) {
 static void background_animation_complete_page(void) {
     VIEWER_LOG(APP_LOG_LEVEL_DEBUG, "Background page animation completed");
 }
+#endif
 
 static void draw_fin_image(Layer* layer, GContext* ctx) {
     if (s_fin_image) {

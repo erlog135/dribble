@@ -85,6 +85,15 @@ static void timeout_callback(void* context) {
 }
 
 /**
+ * @brief Timer callback wrapper to invoke completion_callback(true)
+ */
+static void completion_timer_callback(void* context) {
+    if (completion_callback) {
+        completion_callback(true);
+    }
+}
+
+/**
  * @brief Handles incoming weather data responses
  */
 static void handle_data_response(DictionaryIterator *iter) {
@@ -136,7 +145,7 @@ static void handle_data_response(DictionaryIterator *iter) {
         loading_in_progress = false;
 
         // Call completion callback with success after a brief delay
-        app_timer_register(500, (AppTimerCallback)completion_callback, (void*)true);
+        app_timer_register(500, completion_timer_callback, NULL);
     }
 }
 
@@ -154,7 +163,7 @@ static void start_demo_data(void) {
         loading_in_progress = false;
 
         // Call completion callback
-        app_timer_register(1000, (AppTimerCallback)completion_callback, (void*)true);
+        app_timer_register(1000, completion_timer_callback, NULL);
     }
 }
 

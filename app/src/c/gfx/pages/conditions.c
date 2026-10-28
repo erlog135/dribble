@@ -49,7 +49,7 @@ static const int GRIDLINE_COUNT = 3;
 static GPathInfo precipitation_graph_info = {
   .num_points = 15,
   .points = (GPoint[]){
-    {1, 0},
+    {0, 0},
     {7, 0},
     {14, 0},
     {21, 0},
@@ -63,7 +63,7 @@ static GPathInfo precipitation_graph_info = {
     {77, 0},
     {83, 0},
     {83, 0},
-    {1, 0},
+    {0, 0},
   }
 };
 
@@ -201,8 +201,8 @@ void draw_conditions(Layer* layer, GContext* ctx) {
     const int step = LAYOUT_PRECIP_H / 4;
     const int x0 = LAYOUT_PRECIP_X;
     const int x1 = x0 + LAYOUT_PRECIP_W;
-    const int bottom_y = LAYOUT_PRECIP_Y + LAYOUT_PRECIP_H;
 #ifndef PBL_PLATFORM_APLITE
+    const int bottom_y = LAYOUT_PRECIP_Y + LAYOUT_PRECIP_H;
     AnimationProgress anim_progress = precip_animation_get_progress();
 #endif
     for (int i = 1; i <= GRIDLINE_COUNT; i++) {

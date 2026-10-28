@@ -101,6 +101,10 @@ static void finish_viewer_refresh(void) {
   reload_viewer_callback((void*)0);
 }
 
+static void remove_splash_window_callback(void *context) {
+  window_stack_remove((Window *)context, false);
+}
+
 // Splash completion handler
 static void splash_completion_handler(bool success) {
   if (success) {
@@ -113,7 +117,7 @@ static void splash_completion_handler(bool success) {
     viewer_update_view(0, 0);  // Start at hour 0, conditions page
 
     // Remove splash window after transition
-    app_timer_register(500, (AppTimerCallback)window_stack_remove, s_splash_window);
+    app_timer_register(500, remove_splash_window_callback, s_splash_window);
   } else {
     UTIL_LOG(APP_LOG_LEVEL_ERROR, "Splash loading failed");
     // Splash window stays visible with error message; user restarts the app to retry

@@ -97,16 +97,17 @@ void unpack_hour_package_at(HourPackage weather_data, ForecastHour* forecast_hou
 
     // Format hour string, honoring the watch's 12h/24h clock setting
     // (e.g. "12PM" in 12h style, "00:00"/"13:00"/"23:00" in 24h style)
+    uint8_t h = ((hour % 24) + 24) % 24;
     if (clock_is_24h_style()) {
-        snprintf(forecast_hour->hour_string, sizeof(forecast_hour->hour_string), "%02d:00", hour);
-    } else if (hour == 0) {
+        snprintf(forecast_hour->hour_string, sizeof(forecast_hour->hour_string), "%02u:00", h);
+    } else if (h == 0) {
         strcpy(forecast_hour->hour_string, "12AM");
-    } else if (hour < 12) {
-        snprintf(forecast_hour->hour_string, sizeof(forecast_hour->hour_string), "%dAM", hour);
-    } else if (hour == 12) {
+    } else if (h < 12) {
+        snprintf(forecast_hour->hour_string, sizeof(forecast_hour->hour_string), "%uAM", h);
+    } else if (h == 12) {
         strcpy(forecast_hour->hour_string, "12PM");
     } else {
-        snprintf(forecast_hour->hour_string, sizeof(forecast_hour->hour_string), "%dPM", hour - 12);
+        snprintf(forecast_hour->hour_string, sizeof(forecast_hour->hour_string), "%uPM", h - 12);
     }
 
     // Convert temperature if needed
