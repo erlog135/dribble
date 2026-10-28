@@ -7,6 +7,7 @@
 #include "utils/demo.h"
 #include "gfx/windows/viewer.h"
 #include "gfx/windows/splash.h"
+#include "utils/glance.h"
 
 #define APP_MESSAGE_INBOX_SIZE 512
 #define MAX_STRING_LENGTH 40
@@ -185,6 +186,7 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
     } else {
       viewer_update_view(viewer_get_current_hour(), viewer_get_current_page());
     }
+    glance_update();
   }
 
   // ************************SETTINGS***********************
@@ -288,6 +290,7 @@ static void prv_init(void) {
     s_viewer_window = viewer_window_create();
     window_stack_push(s_viewer_window, true);
     viewer_update_view(forecast_now_index, 0);
+    glance_update();
 
     ClaySettings* settings = prefs_get_settings();
     uint32_t max_age = (settings->refresh_interval > 0 ? settings->refresh_interval : 30) * 60;
@@ -320,6 +323,8 @@ static void prv_init(void) {
 }
 
 static void prv_deinit(void) {
+  glance_update();
+
   if (s_request_timer) {
     app_timer_cancel(s_request_timer);
     s_request_timer = NULL;

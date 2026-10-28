@@ -148,7 +148,7 @@ function fetchWeather(latitude, longitude, optionsOrCallback, callback) {
                     ? precipitationTypeNames[typeIndex]
                     : "Rain";
 
-                pin = events.createNextHourPrecipitationPin(startTime, endTime, precipTypeStr, avgIntensityMmHr);
+                pin = events.createNextHourPrecipitationPin(startTime, endTime, precipTypeStr, avgIntensityMmHr, hourPackages, interval);
             }
         }
 

@@ -6,6 +6,7 @@
 #include "../../utils/demo.h"
 #include "../../utils/prefs.h"
 #include "../../utils/cache.h"
+#include "../../utils/glance.h"
 
 // Window and UI elements (window itself is owned by main.c)
 static Layer* image_layer;
@@ -127,6 +128,7 @@ static void handle_data_response(DictionaryIterator *iter) {
     if (precipitation_package_tuple) {
         unpack_precipitation((PrecipitationPackage)precipitation_package_tuple->value->data, &precipitation);
         cache_save_precip((uint8_t*)precipitation_package_tuple->value->data);
+        glance_update();
 
         // All data received – cancel timeout and complete loading
         cancel_timeout();

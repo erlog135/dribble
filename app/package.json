@@ -507,7 +507,23 @@
           "file": "timeline/Fin_50px.pdc"
         }
       ],
-      "publishedMedia": []
+      "publishedMedia": [
+        {
+          "name": "PRECIPITATION_EXPECTED",
+          "id": 1,
+          "glance": "MENU_ICON"
+        },
+        {
+          "name": "PRECIPITATION_ACTIVE",
+          "id": 2,
+          "glance": "ICON_INVERT_25PX"
+        },
+        {
+          "name": "PRECIPITATION_NONE",
+          "id": 3,
+          "glance": "ICON_OUTLINE_25PX"
+        }
+      ]
     }
   }
 }
