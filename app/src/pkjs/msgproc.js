@@ -1,8 +1,3 @@
-var getConditionKey = require('./weatherkit').getConditionKey;
-
-var WEATHER_CACHE_KEY = 'weather_cache_data';
-var PRECIPITATION_CACHE_KEY = 'precipitation_cache_data';
-
 // Debug configuration
 var debug = false;
 
@@ -14,7 +9,7 @@ function debugLog(message) {
 
 /**
  * Packs weather data into a 10-byte message according to the format:
- * uint8: hour
+ * uint8: relative hour (hours from current time)
  * int8: temperature degrees (f)
  * int8: temperature (feels like) degrees (f)
  * uint8: wind speed (kph)
@@ -22,14 +17,14 @@ function debugLog(message) {
  * uint8: visibility (km)
  * int8: pressure difference from 1000mb (-128 mb to 127 mb)
  * uint4: wind direction (0-15) in 22.5 degree increments
- * uint4: air quality index (0-15) 0-500 in steps of 50
+ * uint4: air quality index (1-5, 1=good, 5=very poor)
  * uint4: UV index (0-15)
  * uint4: data flags
  * uint4: condition icon code
  * uint4: experiential icon code
  */
 function packHourData(
-    hour,
+    relativeHour,
     temperature,
     feelsLike,
     windSpeed,
@@ -45,8 +40,8 @@ function packHourData(
     var buffer = new ArrayBuffer(10);
     var view = new DataView(buffer);
 
-    // Hour (uint8)
-    view.setUint8(0, hour);
+    // Relative hour (uint8)
+    view.setUint8(0, relativeHour);
 
     // Temperature (int8)
     view.setInt8(1, Math.round(temperature));
@@ -65,7 +60,7 @@ function packHourData(
 
     // Pack pressure, wind direction, air quality index, uv index, and data flags into bytes 6-8
     // Byte 6: int8 pressure difference from 1000mb (-128 to 127)
-    // Byte 7: 4 bits wind direction (0-15, 22.5 deg steps), 4 bits air quality index (0-15, 0-500 in steps of 50)
+    // Byte 7: 4 bits wind direction (0-15, 22.5 deg steps), 4 bits air quality index (1-5, 1=good, 5=very poor)
     // Byte 8: 4 bits uv index (0-15), 4 bits data flags (0000 -> empty, windgust, winddir, airquality)
     var pressureDiff = Math.max(-128, Math.min(127, Math.round(pressure) - 1000));
     view.setInt8(6, pressureDiff);
@@ -73,13 +68,13 @@ function packHourData(
     // Calculate data flags
     var hasWindGust = windGust !== -1;
     var hasWindDir = windDirection !== -1;
-    var hasAirQuality = airQualityIndex !== -1;
+    var hasAirQuality = airQualityIndex !== -1 && airQualityIndex >= 1 && airQualityIndex <= 5;
     var dataFlags = (hasWindGust ? 0x4 : 0) | (hasWindDir ? 0x2 : 0) | (hasAirQuality ? 0x1 : 0);
 
     // Clamp and pack wind direction and air quality index
     // Center wind direction bins: shift by half a bin (11.25 deg) before dividing
     var windDir4 = hasWindDir ? Math.floor(((windDirection + 11.25) % 360) / 22.5) : 0;
-    var aqi4 = hasAirQuality ? Math.max(0, Math.min(15, Math.round(airQualityIndex / 50))) : 0;
+    var aqi4 = hasAirQuality ? Math.max(1, Math.min(5, Math.round(airQualityIndex))) : 0;
     view.setUint8(7, (windDir4 << 4) | (aqi4 & 0x0F));
 
     // Clamp and pack uv index and data flags
@@ -165,112 +160,8 @@ function packAllHourData(hourPackages) {
     return result;
 }
 
-/**
- * Saves weather hour packages to localStorage with timestamp
- * @param {Array} hourPackages - Array of packed weather hour data
- */
-function saveWeatherCache(hourPackages) {
-    try {
-        var cacheData = {
-            timestamp: Date.now(),
-            hourPackages: hourPackages
-        };
-        localStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(cacheData));
-        debugLog('Weather data cached successfully');
-    } catch (error) {
-        debugLog('Failed to save weather cache: ' + error.message);
-    }
-}
-
-/**
- * Saves precipitation data to localStorage with timestamp
- * @param {Array} precipitationData - Packed precipitation data
- */
-function savePrecipitationCache(precipitationData) {
-    try {
-        var cacheData = {
-            timestamp: Date.now(),
-            precipitationData: precipitationData
-        };
-        localStorage.setItem(PRECIPITATION_CACHE_KEY, JSON.stringify(cacheData));
-        debugLog('Precipitation data cached successfully');
-    } catch (error) {
-        debugLog('Failed to save precipitation cache: ' + error.message);
-    }
-}
-
-/**
- * Retrieves cached weather data if it exists and is within the specified age limit
- * @param {number} maxAgeMinutes - Maximum age of cached data in minutes
- * @returns {Object|null} - Object with hourPackages and precipitationData, or null if no valid cache
- */
-function getCachedWeatherData(maxAgeMinutes) {
-    try {
-        // Get weather cache
-        var weatherCacheStr = localStorage.getItem(WEATHER_CACHE_KEY);
-        var precipitationCacheStr = localStorage.getItem(PRECIPITATION_CACHE_KEY);
-
-        if (!weatherCacheStr) {
-            debugLog('No weather cache found');
-            return null;
-        }
-
-        var weatherCache = JSON.parse(weatherCacheStr);
-        var now = Date.now();
-        var maxAgeMs = maxAgeMinutes * 60 * 1000;
-        var weatherAge = now - weatherCache.timestamp;
-
-        if (weatherAge > maxAgeMs) {
-            debugLog('Weather cache expired (age: ' + Math.round(weatherAge / (60 * 1000)) + ' minutes, max: ' + maxAgeMinutes + ' minutes)');
-            return null;
-        }
-
-        var result = {
-            hourPackages: weatherCache.hourPackages,
-            precipitationData: null
-        };
-
-        // Check precipitation cache if it exists
-        if (precipitationCacheStr) {
-            var precipitationCache = JSON.parse(precipitationCacheStr);
-            var precipitationAge = now - precipitationCache.timestamp;
-
-            if (precipitationAge <= maxAgeMs) {
-                result.precipitationData = precipitationCache.precipitationData;
-                debugLog('Using cached precipitation data (age: ' + Math.round(precipitationAge / (60 * 1000)) + ' minutes)');
-            } else {
-                debugLog('Precipitation cache expired (age: ' + Math.round(precipitationAge / (60 * 1000)) + ' minutes)');
-            }
-        }
-
-        debugLog('Using cached weather data (age: ' + Math.round(weatherAge / (60 * 1000)) + ' minutes)');
-        return result;
-
-    } catch (error) {
-        debugLog('Failed to retrieve weather cache: ' + error.message);
-        return null;
-    }
-}
-
-/**
- * Clears all weather-related cache data
- */
-function clearWeatherCache() {
-    try {
-        localStorage.removeItem(WEATHER_CACHE_KEY);
-        localStorage.removeItem(PRECIPITATION_CACHE_KEY);
-        debugLog('Weather cache cleared');
-    } catch (error) {
-        debugLog('Failed to clear weather cache: ' + error.message);
-    }
-}
-
 module.exports = {
     packHourData: packHourData,
     packAllHourData: packAllHourData,
-    packPrecipitation: packPrecipitation,
-    saveWeatherCache: saveWeatherCache,
-    savePrecipitationCache: savePrecipitationCache,
-    getCachedWeatherData: getCachedWeatherData,
-    clearWeatherCache: clearWeatherCache
+    packPrecipitation: packPrecipitation
 };

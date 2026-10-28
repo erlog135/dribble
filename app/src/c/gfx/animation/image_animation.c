@@ -128,17 +128,42 @@ static void km_animation_delay_timer_callback(void* context) {
     }
 }
 
-// Function to store current images before view update (for animation purposes)
-static void store_current_images_for_animation(void) {
+// Destroys any stored clones that haven't been handed to the KM animations.
+static void release_stored_images(void) {
+    if (s_image_animation_context.stored_prev_image) {
+        gdraw_command_image_destroy(s_image_animation_context.stored_prev_image);
+        s_image_animation_context.stored_prev_image = NULL;
+    }
+    if (s_image_animation_context.stored_current_image) {
+        gdraw_command_image_destroy(s_image_animation_context.stored_current_image);
+        s_image_animation_context.stored_current_image = NULL;
+    }
+    if (s_image_animation_context.stored_next_image) {
+        gdraw_command_image_destroy(s_image_animation_context.stored_next_image);
+        s_image_animation_context.stored_next_image = NULL;
+    }
+}
+
+// Clone the outgoing images before the pages replace/destroy them. Only the two
+// images that actually move for this direction are cloned.
+static void store_current_images_for_animation(AnimationDirection direction) {
+    release_stored_images();
+
     if (s_image_animation_context.prev_image_ref && 
         s_image_animation_context.current_image_ref && 
         s_image_animation_context.next_image_ref) {
         
-        s_image_animation_context.stored_prev_image = *s_image_animation_context.prev_image_ref;
-        s_image_animation_context.stored_current_image = *s_image_animation_context.current_image_ref;
-        s_image_animation_context.stored_next_image = *s_image_animation_context.next_image_ref;
+        s_image_animation_context.stored_current_image =
+            manual_clone_image(*s_image_animation_context.current_image_ref);
+        if (direction == ANIMATION_DIRECTION_UP) {
+            s_image_animation_context.stored_prev_image =
+                manual_clone_image(*s_image_animation_context.prev_image_ref);
+        } else {
+            s_image_animation_context.stored_next_image =
+                manual_clone_image(*s_image_animation_context.next_image_ref);
+        }
         
-        ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Stored current images for animation - prev: %p, current: %p, next: %p", 
+        ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Stored image clones for animation - prev: %p, current: %p, next: %p", 
                 (void*)s_image_animation_context.stored_prev_image, 
                 (void*)s_image_animation_context.stored_current_image, 
                 (void*)s_image_animation_context.stored_next_image);
@@ -176,10 +201,7 @@ static void show_original_images(void) {
         s_image_animation_context.show_current_ready = true;
         s_image_animation_context.show_next_ready = true;
         
-        // Clear the stored values - no longer needed
-        s_image_animation_context.stored_prev_image = NULL;
-        s_image_animation_context.stored_current_image = NULL;
-        s_image_animation_context.stored_next_image = NULL;
+        // Any leftover clones are released by the caller (release_stored_images)
         
         s_image_animation_context.images_hidden = false;
         ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "All images now visible, animation complete");
@@ -263,7 +285,7 @@ static void progressive_image_layer_update_proc(Layer* layer, GContext* ctx) {
             // Check if this should use small axis positioning (conditions page, hour 1, with precipitation)
             GPoint draw_pos = LAYOUT_PREV_ICON_POS;
             if (s_image_animation_context.current_page == 0 && // VIEW_PAGE_CONDITIONS
-                s_image_animation_context.current_hour == 1 &&
+                s_image_animation_context.current_hour == forecast_now_index + 1 &&
                 precipitation.precipitation_type > 0) {
                 // Use small axis position for precipitation display
                 draw_pos = LAYOUT_AXIS_SM_POS;
@@ -276,7 +298,7 @@ static void progressive_image_layer_update_proc(Layer* layer, GContext* ctx) {
             // Check if this should use axis positioning (conditions page, hour 0, with precipitation)
             GPoint draw_pos = LAYOUT_CUR_ICON_POS;
             if (s_image_animation_context.current_page == 0 && // VIEW_PAGE_CONDITIONS
-                s_image_animation_context.current_hour == 0 &&
+                s_image_animation_context.current_hour == forecast_now_index &&
                 precipitation.precipitation_type > 0) {
                 // Use axis position for precipitation display
                 draw_pos = LAYOUT_AXIS_LG_POS;
@@ -301,6 +323,7 @@ static void image_animation_complete_callback(void) {
     // Show original images
     ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Attempting to show original images");
     show_original_images();
+    release_stored_images();
     
     // Update state
     s_image_animation_context.state = ANIMATION_STATE_IDLE;
@@ -331,7 +354,7 @@ void image_animation_init_system(void) {
     s_image_animation_context.show_current_ready = false;
     s_image_animation_context.show_next_ready = false;
     
-    // Initialize stored image values
+    // Initialize stored image values (any previous clones were already released)
     s_image_animation_context.stored_prev_image = NULL;
     s_image_animation_context.stored_current_image = NULL;
     s_image_animation_context.stored_next_image = NULL;
@@ -379,6 +402,7 @@ void image_animation_deinit(void) {
     
     // Clean up KM animations
     cleanup_km_animations();
+    release_stored_images();
     
     // Clean up animation layers
     if (s_image_animation_context.progressive_image_layer) {
@@ -414,6 +438,7 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
     // Don't start if already animating
     if (s_image_animation_context.state == ANIMATION_STATE_ANIMATING) {
         ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Already animating, returning");
+        release_stored_images();
         return;
     }
     
@@ -422,6 +447,7 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
         !s_image_animation_context.current_image_ref || 
         !s_image_animation_context.next_image_ref) {
         ANIMATION_LOG(APP_LOG_LEVEL_ERROR, "Image references not set for animation");
+        release_stored_images();
         return;
     }
     
@@ -451,10 +477,10 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
     bool is_experiential_page = (page == 2); // VIEW_PAGE_EXPERIENTIAL
     int offset_idx_1 = 0, offset_idx_2 = 0;
     if (is_experiential_page) {
-        // Defensive: clamp hour to 0-11
-        int h = (hour > 11 ? 11 : hour);
+        // Defensive: clamp hour to the valid range
+        int h = (hour > LAST_FORECAST_HOUR ? LAST_FORECAST_HOUR : hour);
         int prev_h = (h > 0) ? h - 1 : 0;
-        int next_h = (h < 11) ? h + 1 : 11;
+        int next_h = (h < LAST_FORECAST_HOUR) ? h + 1 : LAST_FORECAST_HOUR;
         if (direction == ANIMATION_DIRECTION_UP) {
             // prev (25px) → current (50px): use current hour's icon
             // current (50px) → next (25px): use next hour's icon
@@ -482,7 +508,7 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
         // Adjust for axis image positioning if needed
         if (page == 0 && precipitation.precipitation_type > 0) { // VIEW_PAGE_CONDITIONS with precipitation
             // UP direction from hour 1 to hour 0: prev (small axis from hour 1) → current (large axis at hour 0)
-            if (hour == 0) {
+            if (hour == forecast_now_index) {
                 from_pos_1 = LAYOUT_AXIS_SM_POS;
                 to_pos_1 = LAYOUT_AXIS_LG_POS;
             }
@@ -500,7 +526,7 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
 
         // Adjust dimensions for precipitation scenarios (UP direction)
         if (page == 0 && precipitation.precipitation_type > 0) { // VIEW_PAGE_CONDITIONS with precipitation
-            if (hour == 0) {
+            if (hour == forecast_now_index) {
                 to_width_1 = LAYOUT_PRECIP_W;
                 to_height_1 = LAYOUT_PRECIP_H;
             }
@@ -515,7 +541,7 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
 
         // Adjust for axis image positioning if needed
         if (page == 0 && precipitation.precipitation_type > 0) { // VIEW_PAGE_CONDITIONS with precipitation
-            if (hour == 0) {
+            if (hour == forecast_now_index) {
                 from_pos_2 = LAYOUT_CUR_ICON_POS;
                 // to_pos_2 stays as normal next position
             }
@@ -550,7 +576,7 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
         // Adjust for axis image positioning if needed
         if (page == 0 && precipitation.precipitation_type > 0) { // VIEW_PAGE_CONDITIONS with precipitation
             // DOWN direction from hour 0 to hour 1: stored images are from hour 0
-            if (hour == 1) {
+            if (hour == forecast_now_index + 1) {
                 from_pos_2 = LAYOUT_AXIS_LG_POS;
                 to_pos_2 = LAYOUT_AXIS_SM_POS;
             }
@@ -568,10 +594,10 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
 
         // Adjust dimensions for precipitation scenarios
         if (page == 0 && precipitation.precipitation_type > 0) { // VIEW_PAGE_CONDITIONS with precipitation
-            if (hour == 0) {
+            if (hour == forecast_now_index) {
                 to_width_1 = LAYOUT_PRECIP_W;
                 to_height_1 = LAYOUT_PRECIP_H;
-            } else if (hour == 1) {
+            } else if (hour == forecast_now_index + 1) {
                 from_width_2 = LAYOUT_PRECIP_W;
                 from_height_2 = LAYOUT_PRECIP_H;
             }
@@ -610,8 +636,13 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
     
     // Create temporary copies of the images and set up KM animations if images are available
     if (source_image_1) {
-        ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Attempting to clone source_image_1: %p", (void*)source_image_1);
-        s_image_animation_context.km_temp_image_1 = manual_clone_image(source_image_1);
+        // Take ownership of the stored clone; the KM animation mutates it.
+        s_image_animation_context.km_temp_image_1 = source_image_1;
+        if (source_image_1 == s_image_animation_context.stored_prev_image) {
+            s_image_animation_context.stored_prev_image = NULL;
+        } else if (source_image_1 == s_image_animation_context.stored_next_image) {
+            s_image_animation_context.stored_next_image = NULL;
+        }
         ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Cloned image 1 result: %p", (void*)s_image_animation_context.km_temp_image_1);
         
         if (s_image_animation_context.km_temp_image_1) {
@@ -642,8 +673,11 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
     }
     
     if (source_image_2) {
-        ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Attempting to clone source_image_2: %p", (void*)source_image_2);
-        s_image_animation_context.km_temp_image_2 = manual_clone_image(source_image_2);
+        // Take ownership of the stored clone; the KM animation mutates it.
+        s_image_animation_context.km_temp_image_2 = source_image_2;
+        if (source_image_2 == s_image_animation_context.stored_current_image) {
+            s_image_animation_context.stored_current_image = NULL;
+        }
         ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Cloned image 2 result: %p", (void*)s_image_animation_context.km_temp_image_2);
         
         if (s_image_animation_context.km_temp_image_2) {
@@ -681,6 +715,10 @@ void image_animation_start(AnimationDirection direction, uint8_t hour, uint8_t p
     if (s_image_animation_context.km_animation_2) {
         s_image_animation_context.km_animations_expected++;
     }
+    
+    // The stored clones now live on as km_temp_image_*; drop our references
+    // (anything that wasn't handed off is freed here).
+    release_stored_images();
     
     ANIMATION_LOG(APP_LOG_LEVEL_DEBUG, "Expected %d animations to complete", s_image_animation_context.km_animations_expected);
     
@@ -755,8 +793,8 @@ bool image_animation_are_images_hidden(void) {
     return s_image_animation_context.images_hidden;
 }
 
-void image_animation_store_current_images(void) {
-    store_current_images_for_animation();
+void image_animation_store_current_images(AnimationDirection direction) {
+    store_current_images_for_animation(direction);
 }
 
 void image_animation_stop(void) {

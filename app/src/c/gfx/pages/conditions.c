@@ -18,13 +18,23 @@ static GDrawCommandImage** prev_image_ref;
 static GDrawCommandImage** current_image_ref;
 static GDrawCommandImage** next_image_ref;
 
-// Conditions configuration
-static GDrawCommandImage** condition_images_25px;
-static GDrawCommandImage** condition_images_50px;
-
 // Axis images for precipitation display
 static GDrawCommandImage* axis_small_image;
 static GDrawCommandImage* axis_large_image;
+
+// Images owned by the three visible slots; destroyed/reloaded on each view change.
+static GDrawCommandImage* owned_slots[3];
+
+static void release_owned_slots(void) {
+    for (int i = 0; i < 3; i++) {
+        if (owned_slots[i]) {
+            gdraw_command_image_destroy(owned_slots[i]);
+            owned_slots[i] = NULL;
+        }
+    }
+    axis_small_image = NULL;
+    axis_large_image = NULL;
+}
 
 // Precipitation graph configuration
 static GPath* precipitation_graph;
@@ -108,35 +118,31 @@ void set_conditions_view(int hour) {
     // switch takes effect immediately on next draw.
     graph_points_dirty = true;
 
+    // Free the previous slot images, then load only what the new view shows.
+    release_owned_slots();
     if (is_active) {
-        // Previous hour condition icon. For hour 1 following a precipitation
-        // hour 0, show the small axis image instead of a weather icon.
         if (hour > 0) {
-            if (hour == 1 && precipitation.precipitation_type > 0) {
-                *prev_image_ref = axis_small_image;
+            if (hour == forecast_now_index + 1 && precipitation.precipitation_type > 0) {
+                owned_slots[0] = load_axis_image(false);
+                axis_small_image = owned_slots[0];
             } else {
-                *prev_image_ref = condition_images_25px[forecast_hours[hour-1].conditions_icon];
+                owned_slots[0] = load_condition_image(forecast_hours[hour-1].conditions_icon, false);
             }
-        } else {
-            *prev_image_ref = NULL;
         }
-
-        // Current hour condition icon. On hour 0 with precipitation we show the
-        // large axis beneath the graph instead of a weather icon.
-        if (hour == 0 && precipitation.precipitation_type > 0) {
-            *current_image_ref = axis_large_image;
+        if (hour == forecast_now_index && precipitation.precipitation_type > 0) {
+            owned_slots[1] = load_axis_image(true);
+            axis_large_image = owned_slots[1];
         } else {
-            *current_image_ref = condition_images_50px[forecast_hours[hour].conditions_icon];
+            owned_slots[1] = load_condition_image(forecast_hours[hour].conditions_icon, true);
         }
-
-        // Next hour condition icon.
-        if (hour < 11) {
-            *next_image_ref = condition_images_25px[forecast_hours[hour+1].conditions_icon];
-        } else {
-            *next_image_ref = NULL;
+        if (hour < LAST_FORECAST_HOUR) {
+            owned_slots[2] = load_condition_image(forecast_hours[hour+1].conditions_icon, false);
         }
+        *prev_image_ref = owned_slots[0];
+        *current_image_ref = owned_slots[1];
+        *next_image_ref = owned_slots[2];
 
-        if (hour == 0 && precipitation.precipitation_type > 0) {
+        if (hour == forecast_now_index && precipitation.precipitation_type > 0) {
             graph_draw_timer = app_timer_register(300, graph_draw_timer_callback, NULL);
         }
     }
@@ -164,14 +170,6 @@ Layer* init_conditions_layers(Layer* window_layer, GDrawCommandImage** prev_imag
     current_image_ref = current_image;
     next_image_ref = next_image;
 
-    // Initialize condition images
-    condition_images_25px = init_25px_condition_images();
-    condition_images_50px = init_50px_condition_images();
-    
-    // Initialize axis images
-    axis_small_image = init_axis_small_image();
-    axis_large_image = init_axis_large_image();
-
     // Initialize precipitation graph
     precipitation_graph = gpath_create(&precipitation_graph_info);
     precipitation_graph->offset = LAYOUT_PRECIP_POS;
@@ -186,7 +184,7 @@ void draw_conditions(Layer* layer, GContext* ctx) {
 
     // Only draw the precipitation graph if hour 0 has precipitation and the
     // stagger timer has elapsed.
-    if (selected_hour != 0 || precipitation.precipitation_type <= 0 || !show_graph) {
+    if (selected_hour != forecast_now_index || precipitation.precipitation_type <= 0 || !show_graph) {
         return;
     }
 
@@ -235,23 +233,8 @@ void deinit_conditions_layers(void) {
 #ifndef PBL_PLATFORM_APLITE
     precip_animation_deinit();
 #endif
-    
-    if (condition_images_25px) {
-        deinit_25px_condition_images(condition_images_25px);
-        condition_images_25px = NULL;
-    }
-    if (condition_images_50px) {
-        deinit_50px_condition_images(condition_images_50px);
-        condition_images_50px = NULL;
-    }
-    if (axis_small_image) {
-        deinit_axis_image(axis_small_image);
-        axis_small_image = NULL;
-    }
-    if (axis_large_image) {
-        deinit_axis_image(axis_large_image);
-        axis_large_image = NULL;
-    }
+
+    release_owned_slots();
     if (precipitation_graph) {
         gpath_destroy(precipitation_graph);
         precipitation_graph = NULL;

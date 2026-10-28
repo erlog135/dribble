@@ -12,46 +12,56 @@ static GDrawCommandImage** prev_image_ref;
 static GDrawCommandImage** current_image_ref;
 static GDrawCommandImage** next_image_ref;
 
-// Experiential configuration
-static GDrawCommandImage** experiential_images_25px;
-static GDrawCommandImage** experiential_images_50px;
-
 static GDrawCommandImage* emoji_image;
 
 static void update_icons();
+
+// Images owned by the three visible slots; destroyed/reloaded on each view change.
+static GDrawCommandImage* owned_slots[3];
+static void release_owned_slots(void) {
+    for (int i = 0; i < 3; i++) {
+        if (owned_slots[i]) {
+            gdraw_command_image_destroy(owned_slots[i]);
+            owned_slots[i] = NULL;
+        }
+    }
+}
+
+static void release_emoji(void) {
+    if (emoji_image) {
+        gdraw_command_image_destroy(emoji_image);
+        emoji_image = NULL;
+    }
+}
 
 void set_experiential_view(int hour) {
     is_active = (hour >= 0);
     selected_hour = hour;
 
+    release_owned_slots();
+
     if (!is_active) {
+        release_emoji();
         return;
     }
 
     update_icons();
 
-    uint8_t current_experiential_icon = forecast_hours[hour].experiential_icon;
-
-    // Previous hour experiential icon.
+    // The emoji is the same all session; keep it loaded while the page is
+    // active and only load it on entry.
+    if (!emoji_image) {
+        emoji_image = load_random_emoji_image();
+    }
     if (hour > 0) {
-        uint8_t prev = forecast_hours[hour - 1].experiential_icon;
-        *prev_image_ref = (prev == 0) ? NULL : experiential_images_25px[prev - 1];
-    } else {
-        *prev_image_ref = NULL;
+        owned_slots[0] = load_experiential_image(forecast_hours[hour - 1].experiential_icon, false);
     }
-
-    // Current hour experiential icon.
-    *current_image_ref = (current_experiential_icon == 0)
-        ? NULL
-        : experiential_images_50px[current_experiential_icon - 1];
-
-    // Next hour experiential icon.
-    if (hour < 11) {
-        uint8_t next = forecast_hours[hour + 1].experiential_icon;
-        *next_image_ref = (next == 0) ? NULL : experiential_images_25px[next - 1];
-    } else {
-        *next_image_ref = NULL;
+    owned_slots[1] = load_experiential_image(forecast_hours[hour].experiential_icon, true);
+    if (hour < LAST_FORECAST_HOUR) {
+        owned_slots[2] = load_experiential_image(forecast_hours[hour + 1].experiential_icon, false);
     }
+    *prev_image_ref = owned_slots[0];
+    *current_image_ref = owned_slots[1];
+    *next_image_ref = owned_slots[2];
 }
 
 GDrawCommandImage* get_experiential_emoji(void) {
@@ -77,36 +87,12 @@ Layer* init_experiential_layers(Layer* window_layer, GDrawCommandImage** prev_im
     current_image_ref = current_image;
     next_image_ref = next_image;
 
-    // TODO: Initialize experiential images
-    experiential_images_25px = init_25px_experiential_images();
-    experiential_images_50px = init_50px_experiential_images();
-    
-    // Randomly choose one emoji to load
-    const uint32_t emoji_ids[] = {
-        RESOURCE_ID_EMOJI_KISSING,
-        RESOURCE_ID_EMOJI_SMILE,
-        RESOURCE_ID_EMOJI_TEETH,
-        RESOURCE_ID_EMOJI_WINKY_TONGUE
-    };
-    uint32_t chosen_emoji_id = emoji_ids[rand() % 4];
-    emoji_image = gdraw_command_image_create_with_resource(chosen_emoji_id);
-
     return experiential_layer;
 }
 
 void deinit_experiential_layers(void) {
-    if (experiential_images_25px) {
-        deinit_25px_experiential_images(experiential_images_25px);
-        experiential_images_25px = NULL;
-    }
-    if (experiential_images_50px) {
-        deinit_50px_experiential_images(experiential_images_50px);
-        experiential_images_50px = NULL;
-    }
-    if (emoji_image) {
-        gdraw_command_image_destroy(emoji_image);
-        emoji_image = NULL;
-    }
+    release_owned_slots();
+    release_emoji();
     if (experiential_layer) {
         layer_destroy(experiential_layer);
         experiential_layer = NULL;

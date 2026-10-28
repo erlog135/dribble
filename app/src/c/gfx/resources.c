@@ -1,4 +1,4 @@
-#include <pebble.h>
+﻿#include <pebble.h>
 #include "resources.h"
 #include "../utils/weather.h"
 
@@ -124,296 +124,51 @@ static void decide_moon(void) {
     }
 }
 
-GDrawCommandImage** init_25px_condition_images() {
+GDrawCommandImage* load_condition_image(uint8_t code, bool large) {
+    if (code >= NUM_WEATHER_CONDITIONS) return NULL;
     decide_moon();
-    
-    GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * NUM_WEATHER_CONDITIONS);
-    if (!images) return NULL;
-    
-    // Initialize all entries to NULL
-    for (int i = 0; i < NUM_WEATHER_CONDITIONS; ++i) {
-        images[i] = NULL;
+    uint32_t id = large ? CONDITION_RESOURCE_IDS_50PX[code] : CONDITION_RESOURCE_IDS_25PX[code];
+    if (code == 11 && use_sleepy_moon) {
+        id = large ? RESOURCE_ID_SLEEPY_MOON_50PX : RESOURCE_ID_SLEEPY_MOON_25PX;
     }
-    
-    // Scan forecast_hours to find which condition icons are actually used
-    bool used[NUM_WEATHER_CONDITIONS] = {false};
-    for (int hour = 0; hour < 12; ++hour) {
-        uint8_t icon = forecast_hours[hour].conditions_icon;
-        if (icon < NUM_WEATHER_CONDITIONS) {
-            used[icon] = true;
-        }
-    }
-    
-    // Only load images for IDs that are actually used
-    for (int i = 0; i < NUM_WEATHER_CONDITIONS; ++i) {
-        if (used[i]) {
-            uint32_t resource_id = CONDITION_RESOURCE_IDS_25PX[i];
-            if (i == 11 && use_sleepy_moon) {  // CLEAR NIGHT condition
-                resource_id = RESOURCE_ID_SLEEPY_MOON_25PX;
-            }
-            images[i] = gdraw_command_image_create_with_resource(resource_id);
-        }
-    }
-    return images;
+    return gdraw_command_image_create_with_resource(id);
 }
 
-GDrawCommandImage** init_50px_condition_images() {
-    decide_moon();
-    
-    GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * NUM_WEATHER_CONDITIONS);
-    if (!images) return NULL;
-    
-    // Initialize all entries to NULL
-    for (int i = 0; i < NUM_WEATHER_CONDITIONS; ++i) {
-        images[i] = NULL;
-    }
-    
-    // Scan forecast_hours to find which condition icons are actually used
-    bool used[NUM_WEATHER_CONDITIONS] = {false};
-    for (int hour = 0; hour < 12; ++hour) {
-        uint8_t icon = forecast_hours[hour].conditions_icon;
-        if (icon < NUM_WEATHER_CONDITIONS) {
-            used[icon] = true;
-        }
-    }
-    
-    // Only load images for IDs that are actually used
-    for (int i = 0; i < NUM_WEATHER_CONDITIONS; ++i) {
-        if (used[i]) {
-            uint32_t resource_id = CONDITION_RESOURCE_IDS_50PX[i];
-            if (i == 11 && use_sleepy_moon) {  // CLEAR NIGHT condition
-                resource_id = RESOURCE_ID_SLEEPY_MOON_50PX;
-            }
-            images[i] = gdraw_command_image_create_with_resource(resource_id);
-        }
-    }
-    return images;
+GDrawCommandImage* load_experiential_image(uint8_t icon, bool large) {
+    if (icon == 0 || icon > NUM_EXPERIENTIAL_RESOURCES) return NULL;
+    return gdraw_command_image_create_with_resource(
+        large ? EXPERIENTIAL_RESOURCE_IDS_50PX[icon - 1] : EXPERIENTIAL_RESOURCE_IDS_25PX[icon - 1]);
 }
 
-void deinit_25px_condition_images(GDrawCommandImage** condition_images_25px) {
-    if (!condition_images_25px) return;
-    for (int i = 0; i < NUM_WEATHER_CONDITIONS; ++i) {
-        if (condition_images_25px[i]) {
-            gdraw_command_image_destroy(condition_images_25px[i]);
-        }
-    }
-    free(condition_images_25px);
-}
-
-void deinit_50px_condition_images(GDrawCommandImage** condition_images_50px) {
-    if (!condition_images_50px) return;
-    for (int i = 0; i < NUM_WEATHER_CONDITIONS; ++i) {
-        if (condition_images_50px[i]) {
-            gdraw_command_image_destroy(condition_images_50px[i]);
-        }
-    }
-    free(condition_images_50px);
-}
-
-// Axis image functions
-GDrawCommandImage* init_axis_small_image() {
-    return gdraw_command_image_create_with_resource(RESOURCE_ID_AXIS_SMALL);
-}
-
-GDrawCommandImage* init_axis_large_image() {
-    return gdraw_command_image_create_with_resource(RESOURCE_ID_AXIS_LARGE);
-}
-
-void deinit_axis_image(GDrawCommandImage* axis_image) {
-    if (axis_image) {
-        gdraw_command_image_destroy(axis_image);
-    }
-}
-
-// Airflow image functions
-GDrawCommandImage** init_wind_vane_images() {
-    // Allocate array for 8 directional wind vanes (N, NE, E, SE, S, SW, W, NW)
-    GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * 8);
-    if (!images) return NULL;
-    
-    // Initialize all entries to NULL
-    for (int i = 0; i < 8; ++i) {
-        images[i] = NULL;
-    }
-    
-    // Scan forecast_hours to find which wind directions are actually used
-    bool used[8] = {false};
-    for (int hour = 0; hour < 12; ++hour) {
-        int8_t dir = forecast_hours[hour].wind_direction;
-        if (dir >= 0 && dir < 8) {
-            used[dir] = true;
-        }
-    }
-    
-    // Resource IDs for wind vane directions (N, NE, E, SE, S, SW, W, NW)
-    const uint32_t WIND_VANE_RESOURCE_IDS[] = {
-        RESOURCE_ID_WIND_VANE_N,
-        RESOURCE_ID_WIND_VANE_NE,
-        RESOURCE_ID_WIND_VANE_E,
-        RESOURCE_ID_WIND_VANE_SE,
-        RESOURCE_ID_WIND_VANE_S,
-        RESOURCE_ID_WIND_VANE_SW,
-        RESOURCE_ID_WIND_VANE_W,
-        RESOURCE_ID_WIND_VANE_NW
+GDrawCommandImage* load_wind_vane_image(int8_t dir) {
+    static const uint32_t ids[] = {
+        RESOURCE_ID_WIND_VANE_N, RESOURCE_ID_WIND_VANE_NE, RESOURCE_ID_WIND_VANE_E,
+        RESOURCE_ID_WIND_VANE_SE, RESOURCE_ID_WIND_VANE_S, RESOURCE_ID_WIND_VANE_SW,
+        RESOURCE_ID_WIND_VANE_W, RESOURCE_ID_WIND_VANE_NW
     };
-    
-    // Only load images for directions that are actually used
-    for (int i = 0; i < 8; ++i) {
-        if (used[i]) {
-            images[i] = gdraw_command_image_create_with_resource(WIND_VANE_RESOURCE_IDS[i]);
-        }
-    }
-    
-    return images;
+    if (dir < 0 || dir >= 8) return NULL;
+    return gdraw_command_image_create_with_resource(ids[dir]);
 }
 
-GDrawCommandImage** init_wind_speed_images() {
-    // Allocate array for 24 wind speed images (3 speeds × 8 directions)
-    GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * 24);
-    if (!images) return NULL;
-    
-    // Initialize all entries to NULL
-    for (int i = 0; i < 24; ++i) {
-        images[i] = NULL;
-    }
-    
-    // Scan forecast_hours to find which wind speed resource IDs are actually used
-    bool used[24] = {false};
-    for (int hour = 0; hour < 12; ++hour) {
-        uint32_t resource_id = forecast_hours[hour].wind_speed_resource_id;
-        if (resource_id != 0) {
-            // Calculate index from resource ID
-            // Slow = 0-7, Med = 8-15, Fast = 16-23
-            int index = -1;
-            if (resource_id >= RESOURCE_ID_WIND_SPEED_SLOW_N && resource_id <= RESOURCE_ID_WIND_SPEED_SLOW_NW) {
-                index = resource_id - RESOURCE_ID_WIND_SPEED_SLOW_N;
-            } else if (resource_id >= RESOURCE_ID_WIND_SPEED_MED_N && resource_id <= RESOURCE_ID_WIND_SPEED_MED_NW) {
-                index = 8 + (resource_id - RESOURCE_ID_WIND_SPEED_MED_N);
-            } else if (resource_id >= RESOURCE_ID_WIND_SPEED_FAST_N && resource_id <= RESOURCE_ID_WIND_SPEED_FAST_NW) {
-                index = 16 + (resource_id - RESOURCE_ID_WIND_SPEED_FAST_N);
-            }
-            
-            if (index >= 0 && index < 24) {
-                used[index] = true;
-            }
-        }
-    }
-    
-    // Resource ID base for each speed level
-    const uint32_t base_ids[] = {
-        RESOURCE_ID_WIND_SPEED_SLOW_N,
-        RESOURCE_ID_WIND_SPEED_MED_N,
-        RESOURCE_ID_WIND_SPEED_FAST_N
+GDrawCommandImage* load_wind_speed_image(uint32_t resource_id) {
+    if (resource_id == 0) return NULL;
+    return gdraw_command_image_create_with_resource(resource_id);
+}
+
+// The emoji is chosen once per app launch. On low-memory platforms the image is
+// loaded/unloaded as the page changes, but always uses this same choice.
+GDrawCommandImage* load_random_emoji_image(void) {
+    static const uint32_t emoji_ids[] = {
+        RESOURCE_ID_EMOJI_KISSING, RESOURCE_ID_EMOJI_SMILE,
+        RESOURCE_ID_EMOJI_TEETH, RESOURCE_ID_EMOJI_WINKY_TONGUE
     };
-    
-    // Only load images that are actually used
-    for (int speed = 0; speed < 3; ++speed) {
-        for (int dir = 0; dir < 8; ++dir) {
-            int index = speed * 8 + dir;
-            if (used[index]) {
-                images[index] = gdraw_command_image_create_with_resource(base_ids[speed] + dir);
-            }
-        }
+    static int8_t chosen = -1;
+    if (chosen < 0) {
+        chosen = rand() % 4;
     }
-    
-    return images;
+    return gdraw_command_image_create_with_resource(emoji_ids[chosen]);
 }
 
-void deinit_wind_vane_images(GDrawCommandImage** wind_vane_images) {
-    if (!wind_vane_images) return;
-    
-    for (int i = 0; i < 8; ++i) {
-        if (wind_vane_images[i]) {
-            gdraw_command_image_destroy(wind_vane_images[i]);
-        }
-    }
-    free(wind_vane_images);
-}
-
-void deinit_wind_speed_images(GDrawCommandImage** wind_speed_images) {
-    if (!wind_speed_images) return;
-    
-    for (int i = 0; i < 24; ++i) {
-        if (wind_speed_images[i]) {
-            gdraw_command_image_destroy(wind_speed_images[i]);
-        }
-    }
-    free(wind_speed_images);
-}
-
-// Experiential image functions
-GDrawCommandImage** init_25px_experiential_images() {
-    GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * NUM_EXPERIENTIAL_RESOURCES);
-    if (!images) return NULL;
-    
-    // Initialize all entries to NULL
-    for (int i = 0; i < NUM_EXPERIENTIAL_RESOURCES; ++i) {
-        images[i] = NULL;
-    }
-    
-    // Scan forecast_hours to find which experiential icons are actually used
-    // Note: experiential_icon values are 1-7 (0 means none), but arrays are 0-indexed
-    bool used[NUM_EXPERIENTIAL_RESOURCES] = {false};
-    for (int hour = 0; hour < 12; ++hour) {
-        uint8_t icon = forecast_hours[hour].experiential_icon;
-        if (icon > 0 && icon <= NUM_EXPERIENTIAL_RESOURCES) {
-            used[icon - 1] = true;  // Convert 1-based icon to 0-based array index
-        }
-    }
-    
-    // Only load images for IDs that are actually used
-    for (int i = 0; i < NUM_EXPERIENTIAL_RESOURCES; ++i) {
-        if (used[i]) {
-            images[i] = gdraw_command_image_create_with_resource(EXPERIENTIAL_RESOURCE_IDS_25PX[i]);
-        }
-    }
-    return images;
-}
-
-GDrawCommandImage** init_50px_experiential_images() {
-    GDrawCommandImage** images = malloc(sizeof(GDrawCommandImage*) * NUM_EXPERIENTIAL_RESOURCES);
-    if (!images) return NULL;
-    
-    // Initialize all entries to NULL
-    for (int i = 0; i < NUM_EXPERIENTIAL_RESOURCES; ++i) {
-        images[i] = NULL;
-    }
-    
-    // Scan forecast_hours to find which experiential icons are actually used
-    // Note: experiential_icon values are 1-7 (0 means none), but arrays are 0-indexed
-    bool used[NUM_EXPERIENTIAL_RESOURCES] = {false};
-    for (int hour = 0; hour < 12; ++hour) {
-        uint8_t icon = forecast_hours[hour].experiential_icon;
-        if (icon > 0 && icon <= NUM_EXPERIENTIAL_RESOURCES) {
-            used[icon - 1] = true;  // Convert 1-based icon to 0-based array index
-        }
-    }
-    
-    // Only load images for IDs that are actually used
-    for (int i = 0; i < NUM_EXPERIENTIAL_RESOURCES; ++i) {
-        if (used[i]) {
-            images[i] = gdraw_command_image_create_with_resource(EXPERIENTIAL_RESOURCE_IDS_50PX[i]);
-        }
-    }
-    return images;
-}
-
-void deinit_25px_experiential_images(GDrawCommandImage** experiential_images_25px) {
-    if (!experiential_images_25px) return;
-    for (int i = 0; i < NUM_EXPERIENTIAL_RESOURCES; ++i) {
-        if (experiential_images_25px[i]) {
-            gdraw_command_image_destroy(experiential_images_25px[i]);
-        }
-    }
-    free(experiential_images_25px);
-}
-
-void deinit_50px_experiential_images(GDrawCommandImage** experiential_images_50px) {
-    if (!experiential_images_50px) return;
-    for (int i = 0; i < NUM_EXPERIENTIAL_RESOURCES; ++i) {
-        if (experiential_images_50px[i]) {
-            gdraw_command_image_destroy(experiential_images_50px[i]);
-        }
-    }
-    free(experiential_images_50px);
+GDrawCommandImage* load_axis_image(bool large) {
+    return gdraw_command_image_create_with_resource(large ? RESOURCE_ID_AXIS_LARGE : RESOURCE_ID_AXIS_SMALL);
 }

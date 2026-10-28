@@ -29,7 +29,9 @@ static const char* PRECIPITATION_STRINGS[] = {
 };
 
 // Array of forecast hours
-ForecastHour forecast_hours[12];
+ForecastHour forecast_hours[MAX_FORECAST_HOURS];
+uint8_t forecast_hour_count = MAX_FORECAST_HOURS;
+uint8_t forecast_now_index = 0;
 
 // Next-hour precipitation (single definition; declared extern in weather.h)
 Precipitation precipitation;
@@ -82,6 +84,17 @@ const char* get_uv_index_string(int uv_index) {
         return "Med";
     }
     return "Low";
+}
+
+const char* get_air_quality_string(int aqi) {
+    switch (aqi) {
+        case 1: return "Good";
+        case 2: return "Fine";
+        case 3: return "Meh";
+        case 4: return "Bad";
+        case 5: return "Bad";
+        default: return "";
+    }
 }
 
 uint8_t km_to_miles(uint8_t kilo) {
