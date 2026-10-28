@@ -7,24 +7,14 @@ GColor get_condition_color(int condition_code);
 GColor get_airflow_color(int airflow_intensity);
 GColor get_experiential_color(int experiential_index);
 
-GDrawCommandImage** init_25px_condition_images();
-GDrawCommandImage** init_50px_condition_images();
-void deinit_25px_condition_images(GDrawCommandImage** condition_images_25px);
-void deinit_50px_condition_images(GDrawCommandImage** condition_images_50px);
+// PDC icons are loaded on demand for only the visible prev/current/next slots
+// and destroyed when no longer shown. The caller owns every returned image and
+// must destroy it with gdraw_command_image_destroy().
+GDrawCommandImage* load_condition_image(uint8_t condition_code, bool large);
+GDrawCommandImage* load_experiential_image(uint8_t icon_1_based, bool large);
+GDrawCommandImage* load_wind_vane_image(int8_t direction);
+GDrawCommandImage* load_wind_speed_image(uint32_t resource_id);
+GDrawCommandImage* load_axis_image(bool large);
 
-// Axis image functions
-GDrawCommandImage* init_axis_small_image();
-GDrawCommandImage* init_axis_large_image();
-void deinit_axis_image(GDrawCommandImage* axis_image);
-
-// Airflow image functions
-GDrawCommandImage** init_wind_vane_images();  // Returns array of 8 directional wind vanes
-GDrawCommandImage** init_wind_speed_images();  // Returns array of 24 images: 3 speeds × 8 directions
-void deinit_wind_vane_images(GDrawCommandImage** wind_vane_images);
-void deinit_wind_speed_images(GDrawCommandImage** wind_speed_images);
-
-// Experiential image functions
-GDrawCommandImage** init_25px_experiential_images();
-GDrawCommandImage** init_50px_experiential_images();
-void deinit_25px_experiential_images(GDrawCommandImage** experiential_images_25px);
-void deinit_50px_experiential_images(GDrawCommandImage** experiential_images_50px);
+// The emoji is chosen once per app launch; each call loads that same emoji.
+GDrawCommandImage* load_random_emoji_image(void);

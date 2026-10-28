@@ -30,10 +30,12 @@ typedef struct {
     GDrawCommandImage** current_image_ref;  // Reference to current image pointer
     GDrawCommandImage** next_image_ref;     // Reference to next image pointer
     
-    // Stored original image values for restoration
-    GDrawCommandImage* stored_prev_image;   // Original prev image value
-    GDrawCommandImage* stored_current_image; // Original current image value  
-    GDrawCommandImage* stored_next_image;   // Original next image value
+    // Clones of the outgoing images used by the animation. Pages destroy their
+    // own slot images as soon as the new view loads, so the animation must own
+    // private copies. Ownership moves to km_temp_image_* when the animation starts.
+    GDrawCommandImage* stored_prev_image;   // Clone of outgoing prev image (UP only)
+    GDrawCommandImage* stored_current_image; // Clone of outgoing current image
+    GDrawCommandImage* stored_next_image;   // Clone of outgoing next image (DOWN only)
     
     // Progressive image visibility flags
     bool show_prev_ready;                   // Whether prev image should be shown
@@ -117,10 +119,11 @@ void image_animation_stop(void);
 bool image_animation_are_images_hidden(void);
 
 /**
- * Store current images before view update (for animation purposes)
- * Call this before update_view() to preserve current images for animation
+ * Clone the outgoing images before the pages replace them (for animation purposes)
+ * Call this before the view update; the page may destroy its images afterwards.
+ * @param direction Animation direction; only the two images that will move are cloned
  */
-void image_animation_store_current_images(void);
+void image_animation_store_current_images(AnimationDirection direction);
 
 /**
  * Show specific image at destination (for debugging)

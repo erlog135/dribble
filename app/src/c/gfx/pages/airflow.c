@@ -33,28 +33,19 @@ static GDrawCommandImage** prev_image_ref;
 static GDrawCommandImage** current_image_ref;
 static GDrawCommandImage** next_image_ref;
 
-// Wind vane and wind speed configuration
-static GDrawCommandImage** wind_vane_images;      // Array of 8 directional wind vanes
-static GDrawCommandImage** wind_speed_images;     // Array of 24 wind speed images (3 speeds × 8 directions)
+// Images owned by the three visible slots; destroyed/reloaded on each view change.
+static GDrawCommandImage* owned_slots[3];
+static void release_owned_slots(void) {
+    for (int i = 0; i < 3; i++) {
+        if (owned_slots[i]) {
+            gdraw_command_image_destroy(owned_slots[i]);
+            owned_slots[i] = NULL;
+        }
+    }
+}
 
 static void frame_update(void* data);
 static void update_icons(void);
-
-// Helper function to get wind speed image index from resource ID
-static int get_wind_speed_image_index(uint32_t resource_id) {
-    if (resource_id == 0) return -1;
-    
-    // Calculate index from resource ID
-    if (resource_id >= RESOURCE_ID_WIND_SPEED_SLOW_N && resource_id <= RESOURCE_ID_WIND_SPEED_SLOW_NW) {
-        return resource_id - RESOURCE_ID_WIND_SPEED_SLOW_N;
-    } else if (resource_id >= RESOURCE_ID_WIND_SPEED_MED_N && resource_id <= RESOURCE_ID_WIND_SPEED_MED_NW) {
-        return 8 + (resource_id - RESOURCE_ID_WIND_SPEED_MED_N);
-    } else if (resource_id >= RESOURCE_ID_WIND_SPEED_FAST_N && resource_id <= RESOURCE_ID_WIND_SPEED_FAST_NW) {
-        return 16 + (resource_id - RESOURCE_ID_WIND_SPEED_FAST_N);
-    }
-    
-    return -1;
-}
 
 // Timeout functions for if view doesn't change for a while
 // stops the animation, hopefully saving battery
@@ -69,28 +60,18 @@ void set_airflow_view(int hour) {
 
     // Update image references (viewer pre-clears slots on page switch; we only
     // need to populate them when active).
+    release_owned_slots();
     if (is_active) {
-        // Previous hour wind-speed icon, if any.
         if (hour > 0) {
-            uint32_t prev_resource_id = forecast_hours[hour-1].wind_speed_resource_id;
-            int prev_index = get_wind_speed_image_index(prev_resource_id);
-            *prev_image_ref = (prev_index >= 0) ? wind_speed_images[prev_index] : NULL;
-        } else {
-            *prev_image_ref = NULL;
+            owned_slots[0] = load_wind_speed_image(forecast_hours[hour-1].wind_speed_resource_id);
         }
-
-        // Current image is the wind vane for this hour's direction.
-        int8_t vane_dir = forecast_hours[hour].wind_direction;
-        *current_image_ref = (vane_dir >= 0 && vane_dir < 8) ? wind_vane_images[vane_dir] : NULL;
-
-        // Next hour wind-speed icon, if any.
+        owned_slots[1] = load_wind_vane_image(forecast_hours[hour].wind_direction);
         if (hour < LAST_FORECAST_HOUR) {
-            uint32_t next_resource_id = forecast_hours[hour+1].wind_speed_resource_id;
-            int next_index = get_wind_speed_image_index(next_resource_id);
-            *next_image_ref = (next_index >= 0) ? wind_speed_images[next_index] : NULL;
-        } else {
-            *next_image_ref = NULL;
+            owned_slots[2] = load_wind_speed_image(forecast_hours[hour+1].wind_speed_resource_id);
         }
+        *prev_image_ref = owned_slots[0];
+        *current_image_ref = owned_slots[1];
+        *next_image_ref = owned_slots[2];
     }
 
     if (is_active && !frame_timer) {
@@ -184,25 +165,11 @@ Layer* init_airflow_layers(Layer* window_layer, GDrawCommandImage** prev_image, 
     current_image_ref = current_image;
     next_image_ref = next_image;
 
-    // Load the wind vane and wind speed images smartly (only used directions/speeds)
-    wind_vane_images = init_wind_vane_images();
-    wind_speed_images = init_wind_speed_images();
-
     return airflow_layer;
 }
 
 void deinit_airflow_layers(void) {
-    // Clean up wind vane images
-    if (wind_vane_images) {
-        deinit_wind_vane_images(wind_vane_images);
-        wind_vane_images = NULL;
-    }
-    
-    // Clean up wind speed images
-    if (wind_speed_images) {
-        deinit_wind_speed_images(wind_speed_images);
-        wind_speed_images = NULL;
-    }
+    release_owned_slots();
     
     // Clean up the layer
     if (airflow_layer) {

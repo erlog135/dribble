@@ -2,6 +2,7 @@
 #include "utils_common.h"
 #include "weather.h"
 #include "msgproc.h"
+#include "demo.h"
 #include <string.h>
 #include <time.h>
 
@@ -35,9 +36,12 @@ static int prv_hour_of_day(time_t t) {
     return lt ? lt->tm_hour : 0;
 }
 
+static time_t s_cached_fetched_at = 0;
+
 void cache_save_hours(const uint8_t* blob) {
     CachedHours cached;
     cached.fetched_at = (uint32_t)time(NULL);
+    s_cached_fetched_at = (time_t)cached.fetched_at;
     memcpy(cached.blob, blob, CACHE_HOURS_BLOB_SIZE);
     persist_write_data(CACHE_KEY_HOURS, &cached, sizeof(cached));
 }
@@ -85,6 +89,7 @@ uint8_t cache_load(void) {
     if (persist_read_data(CACHE_KEY_HOURS, &cached, sizeof(cached)) != (int)sizeof(cached)) {
         return 0;
     }
+    s_cached_fetched_at = (time_t)cached.fetched_at;
 
     time_t now = time(NULL);
     if ((time_t)cached.fetched_at > now) {
@@ -146,3 +151,19 @@ bool cache_is_fresh(uint32_t max_age_seconds) {
     }
     return age <= max_age_seconds;
 }
+
+time_t cache_get_fetched_at(void) {
+    if (DEMO_MODE) {
+        return time(NULL);
+    }
+    if (s_cached_fetched_at != 0) {
+        return s_cached_fetched_at;
+    }
+    CachedHours cached;
+    if (persist_read_data(CACHE_KEY_HOURS, &cached, sizeof(cached)) == (int)sizeof(cached)) {
+        s_cached_fetched_at = (time_t)cached.fetched_at;
+        return s_cached_fetched_at;
+    }
+    return 0;
+}
+

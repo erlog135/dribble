@@ -218,7 +218,10 @@ static void inbox_received_callback(DictionaryIterator *iter, void *context) {
   }
 
   if(refresh_interval_tuple) {
-    settings->refresh_interval = refresh_interval_tuple->value->int32;
+    int32_t v = (refresh_interval_tuple->type == TUPLE_CSTRING)
+        ? atoi(refresh_interval_tuple->value->cstring)
+        : refresh_interval_tuple->value->int32;
+    settings->refresh_interval = (v > 0 && v <= 60) ? v : 30;
   }
 
   if(self_refresh_tuple) {

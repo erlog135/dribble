@@ -31,6 +31,11 @@ void prefs_load(void) {
     if (read != (int)sizeof(settings)) {
         prv_default_settings();
     }
+
+    // Recover from a previously misparsed value (Clay sends select values as strings)
+    if (settings.refresh_interval < 1 || settings.refresh_interval > 60) {
+        settings.refresh_interval = 30;
+    }
 }
 
 void prefs_save(void) {

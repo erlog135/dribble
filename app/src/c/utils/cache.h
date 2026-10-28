@@ -38,3 +38,7 @@ uint32_t cache_get_age_seconds(void);
 
 // Returns true if cached hourly data exists and was fetched within max_age_seconds.
 bool cache_is_fresh(uint32_t max_age_seconds);
+
+// Returns the timestamp (time_t) when the cached hourly data was fetched, or 0 if no cache exists.
+time_t cache_get_fetched_at(void);
+
